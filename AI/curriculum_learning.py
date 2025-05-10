@@ -44,7 +44,7 @@ def do_curriculum_learning(curriculum):
         # Train the model
         print(f"Starting training with ID: {train_id}")
         print(f"Models will be saved to: {model_dir}")
-        print(f"Using {params['num_envs']} environments on {torch.device('cuda' if torch.cuda.is_available() else 'cpu')}")
+        print(f"Using {params['num_envs']} environments")
         print(f"Automatic evaluation will run {params['eval_episodes']} episodes per checkpoint")
 
         final_path, exit_trainer = train_model(
