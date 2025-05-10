@@ -88,13 +88,13 @@ class SimulationEnvironment:
         self.state = self.get_unified_state()
 
         for module in self.environment_modules:
-            module.reset(self.collision_system, self.state, *self.world_size)
+            module.reset(state=self.state)
 
         for module in self.stop_conditions:
-            module.reset(self.state)
+            module.reset(state=self.state)
 
         for module in self.reward_functions:
-            module.reset(self.state)
+            module.reset(state=self.state)
 
         self.running = True
 
@@ -107,6 +107,7 @@ class SimulationEnvironment:
         state = {
             'steps': self.steps,
             'car': self.car.get_unified_state(),
+            'collision_module': self.collision_system,
             'collisions': self.collision_list,
             'environment': environment_module_state,
             'stop_conditions': [module.get_unified_state() for module in self.stop_conditions],

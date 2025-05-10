@@ -10,16 +10,18 @@ class Borders(GenericEnvironment):
         self.world_height = None
         self.collision_rects = []
 
-    def reset(self, collision_system, state, world_width=60, world_height=40):
-        self.world_width = world_width
-        self.world_height = world_height
-        self.collision_rects = [RectObstacle([0, world_height/2 - self.wall_width/2], [world_width, self.wall_width]),
-                            RectObstacle([0, -world_height/2 + self.wall_width/2], [world_width, self.wall_width]),
-                            RectObstacle([world_width/2 - self.wall_width/2, 0], [self.wall_width, world_height]),
-                            RectObstacle([-world_width/2 + self.wall_width/2, 0], [self.wall_width, world_height])]
+    def reset(self, state=None):
+        # Environment setup
+        world_size = state['world_size']
+        self.world_width = world_size[0]
+        self.world_height = world_size[1]
+        self.collision_rects = [RectObstacle([0, self.world_height/2 - self.wall_width/2], [self.world_width, self.wall_width]),
+                            RectObstacle([0, -self.world_height/2 + self.wall_width/2], [self.world_width, self.wall_width]),
+                            RectObstacle([self.world_width/2 - self.wall_width/2, 0], [self.wall_width, self.world_height]),
+                            RectObstacle([-self.world_width/2 + self.wall_width/2, 0], [self.wall_width, self.world_height])]
 
         for rect in self.collision_rects:
-            collision_system.add_object(rect)
+            state['collision_module'].add_object(rect)
 
     def render(self, screen, transform_matrix):
         for rect in self.collision_rects:
@@ -31,4 +33,3 @@ class Borders(GenericEnvironment):
 
     def get_unified_state(self):
         return {'obstacles': self.collision_rects}
-
