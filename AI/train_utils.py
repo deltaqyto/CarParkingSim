@@ -384,6 +384,9 @@ def setup_model_training(environment, params, train_id, model_path=None, search_
         sigma=params['exploration_noise'] * np.ones(n_actions)
     )
 
+    # Create or load model
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
     if model_path:
         # Load existing model
         print(f"Loading model from {model_path}...")
@@ -394,6 +397,7 @@ def setup_model_training(environment, params, train_id, model_path=None, search_
             buffer_size=params['buffer_size'],
             batch_size=params['batch_size'],
             action_noise=action_noise,
+            device=device
         )
         print("Model loaded successfully!")
     else:
@@ -407,6 +411,7 @@ def setup_model_training(environment, params, train_id, model_path=None, search_
             batch_size=params['batch_size'],
             action_noise=action_noise,
             policy_kwargs=dict(net_arch=params['net_size']),
+            device=device,
             verbose=1,
             seed=params['seed']
         )
