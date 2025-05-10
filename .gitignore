@@ -3,5 +3,6 @@ __pycache__/
 *.py[cod]
 *$py.class
 
-# Ignore models directory
+# Ignore directories
 models/
+profile_results/
