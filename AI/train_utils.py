@@ -51,6 +51,7 @@ def evaluate_model(environment, model_path, num_episodes=10):
     episode_rewards = []
     episode_steps = []
     goal_distances = []
+    nearest_goal_distances = []
     stop_reasons_dict = {}
     reward_breakdown_dict = {}
 
@@ -82,11 +83,13 @@ def evaluate_model(environment, model_path, num_episodes=10):
         # Record episode statistics
         episode_rewards.append(episode_reward)
         episode_steps.append(steps)
+        nearest_goal_distances.append(state['closest_goal']['distance'])
 
     # Calculate averages
     avg_reward = np.mean(episode_rewards)
     avg_steps = np.mean(episode_steps)
     avg_goal_distance = np.mean(goal_distances)
+    nearest_goal_distance = np.mean(nearest_goal_distances)
 
     for name, value in reward_breakdown_dict.items():
         reward_breakdown_dict[name] = value / num_episodes
@@ -100,6 +103,7 @@ def evaluate_model(environment, model_path, num_episodes=10):
         'stop_reasons': stop_reasons_dict,
         'reward_breakdown': reward_breakdown_dict,
         'average_goal_distance': avg_goal_distance,
+        'nearest_goal_distance': nearest_goal_distance,
     }
 
 
@@ -171,7 +175,7 @@ class ModelEvaluationMonitor:
         with open(self.results_path, 'w') as f:
             f.write(f"Evaluation Results for {train_id}\n")
             f.write("=" * 80 + "\n\n")
-            f.write(f"Timestep, Average reward, Avg Steps, Stop reasons, Rewards, Goal distances\n")
+            f.write(f"Timestep, Average reward, Avg Steps, Stop reasons, Rewards, Average Goal distances, Nearest Goal Distances\n")
             f.write("-" * 80 + "\n")
 
     def start(self):
@@ -254,6 +258,7 @@ class ModelEvaluationMonitor:
             stop_reasons = [r['stop_reasons'] for r in plot_results]
             reward_breakdowns = [r['reward_breakdown'] for r in plot_results]
             goal_distances = [r['average_goal_distance'] for r in plot_results]
+            nearest_goal_distances = [r['nearest_goal_distance'] for r in plot_results]
 
             # Create figure with 2x2 grid layout
             plt.figure(figsize=(20, 10))
@@ -275,7 +280,7 @@ class ModelEvaluationMonitor:
                     plt.plot(x_vals, y_vals, 'o-', label=reason)
             plt.xlabel('Training Timestep')
             plt.ylabel('Rate')
-            plt.title('Stop Reasons per Timestep')
+            plt.title('Stop Reasons per Episode')
             plt.legend()
             plt.grid(True)
 
@@ -285,12 +290,12 @@ class ModelEvaluationMonitor:
             ax1 = plt.gca()
             ax2 = ax1.twinx()  # Create a second y-axis
             # Plot average steps on left y-axis
-            ax1.plot(timestep, avg_steps, 'b-', label='Avg Steps')
+            ax1.plot(timestep, avg_steps, 'bo-', label='Avg Steps')
             ax1.set_xlabel('Training Timestep')
             ax1.set_ylabel('Steps', color='b')
             ax1.tick_params(axis='y', labelcolor='b')
             # Plot average rewards on right y-axis
-            ax2.plot(timestep, avg_rewards, 'r-', label='Avg Rewards')
+            ax2.plot(timestep, avg_rewards, 'ro-', label='Avg Rewards')
             ax2.set_ylabel('Reward', color='r')
             ax2.tick_params(axis='y', labelcolor='r')
             # Add combined legend
@@ -302,10 +307,12 @@ class ModelEvaluationMonitor:
 
             # Plot 3: Goal distances (bottom-left)
             plt.subplot(2, 2, 3)
-            plt.plot(timestep, goal_distances, 'mo-')
+            plt.plot(timestep, goal_distances, 'mo-', label='Average Distance')
+            plt.plot(timestep, nearest_goal_distances, 'po-', label='Nearest Distance')
             plt.xlabel('Training Timestep')
             plt.ylabel('Goal Distance')
-            plt.title('Average Distance to Goal per Episode')
+            plt.title('Distances to Goal per Episode')
+            plt.legend(loc='upper left')
             plt.grid(True)
 
             # Plot 4: Reward breakdowns (bottom-right)
