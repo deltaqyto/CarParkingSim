@@ -1,9 +1,7 @@
 import os
-import multiprocessing as mp
 import random
 import string
 import torch
-import matplotlib.pyplot as plt
 
 # Import shared functionality
 from AI.train_utils import setup_model_training, train_model

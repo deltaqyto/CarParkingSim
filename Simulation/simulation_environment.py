@@ -1,12 +1,7 @@
 import os
-
-from modules.stop_conditions import omnidirectional_goal
-
 os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = "hide"
 import pygame
 import numpy as np
-from math import pi
-import random
 
 from Utility.console_logger import ConsoleLogger
 from Utility.raycast import Ray, ray_cast

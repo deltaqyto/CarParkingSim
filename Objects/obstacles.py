@@ -1,6 +1,5 @@
 import pygame
 import numpy as np
-from math import radians, sin, cos
 
 
 class RectObstacle:
