@@ -19,6 +19,7 @@ from stable_baselines3.common.callbacks import BaseCallback
 from stable_baselines3.common.vec_env import SubprocVecEnv
 
 from Simulation.simulation_wrapper import SimulationWrapper
+from Utility.plotting import plot_evaluation_results
 
 
 class CheckpointCallback(BaseCallback):
@@ -221,11 +222,12 @@ class ModelEvaluationMonitor:
 
                     if result:
                         self._append_result(result)
-                        self._update_plot(result)
+                        self.results.append(result)
+                        plot_evaluation_results(self.results, self.plot_path)
 
                 # Sleep before next check
                 time.sleep(1.0)
-            except Exception as e:
+            except KeyboardInterrupt as e:
                 print(f"Error in monitor loop: {e}")
                 time.sleep(5.0)  # Wait longer on error
 
@@ -236,116 +238,6 @@ class ModelEvaluationMonitor:
                 f.write(f"{result}\n")
         except Exception as e:
             print(f"Error writing result: {e}")
-
-    def _update_plot(self, result):
-        """Update the evaluation results plot"""
-        self.results.append(result)
-        try:
-            # Filter out 'final' model for plotting by timestep
-            plot_results = [r for r in self.results if r['timestep'] != float('inf')]
-            if len(plot_results) < 1:
-                plt.figure(figsize=(1, 1))
-                plt.tight_layout()
-                plt.savefig(self.plot_path)
-                plt.close()
-                return  # Need at least 1 point to make a plot
-            # Sort by timestep
-            plot_results.sort(key=lambda x: x['timestep'])
-            # Extract data for plotting
-            timestep = [r['timestep'] for r in plot_results]
-            avg_rewards = [r['avg_reward'] for r in plot_results]
-            avg_steps = [r['avg_steps'] for r in plot_results]
-            stop_reasons = [r['stop_reasons'] for r in plot_results]
-            reward_breakdowns = [r['reward_breakdown'] for r in plot_results]
-            goal_distances = [r['average_goal_distance'] for r in plot_results]
-            final_goal_distances = [r['final_goal_distance'] for r in plot_results]
-
-            # Create figure with 2x2 grid layout
-            plt.figure(figsize=(20, 10))
-
-            # Plot 1: Stop Reasons (top-left)
-            plt.subplot(2, 2, 1)
-            # Get all unique stop reason keys across all dictionaries
-            all_stop_reasons = set()
-            for sr in stop_reasons:
-                all_stop_reasons.update(sr.keys())
-            # Plot each stop reason as its own line
-            for reason in all_stop_reasons:
-                reason_values = []
-                for i, sr in enumerate(stop_reasons):
-                    value = sr.get(reason, 0)  # Default to 0 if key is missing
-                    reason_values.append((timestep[i], value))
-                if reason_values:
-                    x_vals, y_vals = zip(*reason_values)
-                    plt.plot(x_vals, y_vals, 'o-', label=reason)
-            plt.xlabel('Training Timestep')
-            plt.ylabel('Rate')
-            plt.title('Stop Reasons per Episode')
-            plt.legend()
-            plt.grid(True)
-
-            # Plot 2: Average Steps & Rewards with dual y-axes (top-right)
-            plt.subplot(2, 2, 2)
-            fig = plt.gcf()
-            ax1 = plt.gca()
-            ax2 = ax1.twinx()  # Create a second y-axis
-            # Plot average steps on left y-axis
-            ax1.plot(timestep, avg_steps, 'bo-', label='Avg Steps')
-            ax1.set_xlabel('Training Timestep')
-            ax1.set_ylabel('Steps', color='b')
-            ax1.tick_params(axis='y', labelcolor='b')
-            # Plot average rewards on right y-axis
-            ax2.plot(timestep, avg_rewards, 'ro-', label='Avg Rewards')
-            ax2.set_ylabel('Reward', color='r')
-            ax2.tick_params(axis='y', labelcolor='r')
-            # Add combined legend
-            lines1, labels1 = ax1.get_legend_handles_labels()
-            lines2, labels2 = ax2.get_legend_handles_labels()
-            ax1.legend(lines1 + lines2, labels1 + labels2, loc='upper left')
-            plt.title('Average Steps and Rewards per Episode')
-            plt.grid(True)
-
-            # Plot 3: Goal distances (bottom-left)
-            plt.subplot(2, 2, 3)
-            plt.plot(timestep, goal_distances, 'mo-', label='Average Distance')
-            plt.plot(timestep, final_goal_distances, 'go-', label='Final Distance')
-            plt.xlabel('Training Timestep')
-            plt.ylabel('Goal Distance')
-            plt.title('Distances to Goal per Episode')
-            plt.legend(loc='upper left')
-            plt.grid(True)
-
-            # Plot 4: Reward breakdowns (bottom-right)
-            plt.subplot(2, 2, 4)
-            # Get all unique reward breakdown keys across all dictionaries
-            all_breakdown_keys = set()
-            for rb in reward_breakdowns:
-                all_breakdown_keys.update(rb.keys())
-            # Plot each reward component as its own line with different colors
-            for key in all_breakdown_keys:
-                # Extract values for this component, handling missing keys
-                component_values = []
-                for i, rb in enumerate(reward_breakdowns):
-                    if key in rb:
-                        component_values.append((timestep[i], rb[key]))
-                if component_values:
-                    x_vals, y_vals = zip(*component_values)
-                    plt.plot(x_vals, y_vals, '-', label=key)
-            plt.xlabel('Training Timestep')
-            plt.ylabel('Reward')
-            plt.title('Reward Breakdown per Episode')
-            plt.legend(loc='upper left')
-            plt.grid(True)
-
-            plt.suptitle(f'Model Evaluation Results - {self.train_id}', fontsize=16)
-            plt.tight_layout()
-            # Save figure without displaying
-            plt.savefig(self.plot_path)
-            plt.close()  # Important! Close the figure to avoid memory leaks
-            print(f"Updated evaluation plot saved to {self.plot_path}")
-        except Exception as e:
-            print(f"Error updating plot: {e}")
-
 
 def setup_model_training(environment, params, train_id, model_path=None, search_path="models"):
     """Common setup for both single and curriculum learning.
