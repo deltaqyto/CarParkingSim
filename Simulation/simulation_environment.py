@@ -1,6 +1,6 @@
 import os
 
-from Ai.BigProj.modules.stop_conditions import omnidirectional_goal
+from modules.stop_conditions import omnidirectional_goal
 
 os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = "hide"
 import pygame
