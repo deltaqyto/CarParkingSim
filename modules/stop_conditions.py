@@ -20,7 +20,7 @@ class GenericGoal(GenericStop):
         self.angle_range = angle_range
         self.name = name
 
-    def reset(self, state, region=None, angle_range=None):
+    def reset(self, mode, state, region=None, angle_range=None):
         if region is not None:
             self.region = region
         if angle_range is not None:

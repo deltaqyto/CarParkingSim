@@ -2,7 +2,7 @@ class GenericModule:
     def __init__(self):
         pass
 
-    def reset(self, state):
+    def reset(self, mode, state):
         pass
 
     def get_digest(self):
@@ -22,9 +22,6 @@ class GenericReward(GenericModule):
 class GenericEnvironment(GenericModule):
     def __init__(self):
         super().__init__()
-
-    def reset(self, collision_system, state):
-        pass
 
     def render(self, screen, transform_matrix):
         pass

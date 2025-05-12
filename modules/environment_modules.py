@@ -10,7 +10,7 @@ class Borders(GenericEnvironment):
         self.world_height = None
         self.collision_rects = []
 
-    def reset(self, state=None):
+    def reset(self, mode, state=None):
         # Environment setup
         world_size = state['world_size']
         self.world_width = world_size[0]

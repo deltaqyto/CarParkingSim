@@ -83,13 +83,13 @@ class SimulationEnvironment:
         self.state = self.get_unified_state()
 
         for module in self.environment_modules:
-            module.reset(state=self.state)
+            module.reset('environment', state=self.state)
 
         for module in self.stop_conditions:
-            module.reset(state=self.state)
+            module.reset('stop', state=self.state)
 
         for module in self.reward_functions:
-            module.reset(state=self.state)
+            module.reset('reward', state=self.state)
 
         self.running = True
 
