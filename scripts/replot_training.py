@@ -277,6 +277,7 @@ def test_model_interactive(environment_factory, env_params):
         results = test_single_model(
             model_path=model_path,
             environment_factory=environment_factory,
+            env_params=env_params,
             seed=seed,
             num_episodes=num_episodes
         )
@@ -300,3 +301,41 @@ def test_model_interactive(environment_factory, env_params):
             print("\nReward Breakdown:")
             for component, value in results.get('reward_breakdown', {}).items():
                 print(f"  {component}: {value:.2f}")
+
+
+def test_multiple_checkpoints(settings):
+    search_path = 'models'
+    seed = random.randint(0, 1000000)
+    for setting in settings:
+        env, param, model, iterations, test_all = setting
+        model = model.strip().upper()
+        results = test_all_checkpoints(
+            model_code=model,
+            environment_factory=env,
+            env_params=param,
+            search_path=search_path,
+            num_episodes=iterations,
+            seed=seed
+        )
+
+        if results:
+            # Generate plot with _retest suffix to not overwrite original
+            model_dir = os.path.join(search_path, f"td3_{model}")
+            plot_path = os.path.join(model_dir, f"{model}_eval_plot_retest.png")
+            plot_evaluation_results(
+                results=results,
+                save_path=plot_path,
+                title=f'Model Evaluation Results - {model} (Retest)'
+            )
+            print(f"\nEvaluation plot saved to: {plot_path}")
+
+            # Save results to file
+            results_path = os.path.join(model_dir, f"{model}_eval_results_retest.txt")
+            with open(results_path, 'w') as f:
+                f.write(f"Retest Evaluation Results for {model}\n")
+                f.write("=" * 80 + "\n\n")
+                f.write(f"Timestep, Average reward, Avg Steps, Stop reasons, Rewards, Average Goal distances, Nearest Goal Distances\n")
+                f.write("-" * 80 + "\n")
+                for result in results:
+                    f.write(f"{result}\n")
+            print(f"Detailed results saved to: {results_path}")

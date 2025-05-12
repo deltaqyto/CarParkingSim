@@ -13,7 +13,7 @@ if __name__ == "__main__":
     try:
         mp.set_start_method('spawn', force=True)
 
-        # Import the training schedule here, not at the top (avoids circular import
+        # Import the training schedule here, not at the top (avoids circular import)
         from Simulation.training_schedule import BasicTrainingSchedule
 
         do_curriculum_learning(BasicTrainingSchedule())  # Start training with the 'Basic Training Schedule'
