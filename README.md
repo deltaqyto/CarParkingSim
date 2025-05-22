@@ -15,8 +15,11 @@ You can run any of the four start programs to see how they function.
 Training and testing will ask you for a model 'code'. This is the id of the model. Models will appear in the models folder.
 Simply type out the code eg 'models/td3_STQ4' -> 'STQ4'.
 You can use this model code to continue training on existing models, if need be.
+If training a fresh model, just leave it blank.
 
-When the model is training, you can look inside the model folder, and will get a graph that shows:
+The provided files have baseline examples embedded. You can use them as a basis for further work.
+
+When the model is training, you can look inside the model folder, and will get a graph (plot.png) that shows:
 * Top Left -> Why the model stopped (hit a wall, ran out of time etc). This is averaged over some number of runs
 * Top right -> Average model steps & average reward
 * Bottom left -> Distance to the nearest goal
