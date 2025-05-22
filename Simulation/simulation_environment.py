@@ -120,6 +120,7 @@ class SimulationEnvironment:
     def get_observation(self):
         # Cast rays and get distances
         ray_distances = []
+        ray_distances_norm = []
         car_heading = np.arctan2(self.car.direction_vector[1], self.car.direction_vector[0])
 
         for i in range(self.rays):
@@ -128,7 +129,8 @@ class SimulationEnvironment:
             ray = Ray(self.car.position, ray_dir)
             distance, _, _ = ray_cast(ray, self.state['obstacles'])
             norm_distance = min(distance / self.max_ray_distance, 1.0)
-            ray_distances.append(norm_distance)
+            ray_distances.append(distance)
+            ray_distances_norm.append(norm_distance)
 
         goals = []
         for module in self.state['stop_conditions']:
@@ -177,12 +179,13 @@ class SimulationEnvironment:
                 relative_goal_angle
             ]
 
-        self.raycasts = ray_distances
+        self.raycasts = ray_distances_norm
         self.state['raycasts'] = self.raycasts
+        self.state['raycasts_true'] = ray_distances
         self.state['closest_goal'] = {'car_frame': closest_goal, 'distance': min_goal_distance}
         observation = [
             *self.state['car']['observation'],
-            *ray_distances,
+            *ray_distances_norm,
             *closest_goal,
         ]
 
