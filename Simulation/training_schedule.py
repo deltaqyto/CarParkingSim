@@ -20,6 +20,17 @@ class GenericTrainingSchedule:
         self.current_environment += 1
         return env, populated_params
 
+    def get_nth_environment(self, env_number):
+        env = self.environments[env_number]
+
+        populated_params = {}
+        for i in range(env_number + 1):
+            if i > len(self.parameters) - 1:
+                break
+            populated_params = {**populated_params, **self.parameters[i]}
+
+        return env, populated_params
+
     def get_num_environments(self):
         return len(self.environments)
 
