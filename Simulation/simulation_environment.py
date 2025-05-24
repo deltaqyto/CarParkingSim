@@ -1,6 +1,6 @@
 import os
 
-from Ai.BigProj.modules.stop_conditions import omnidirectional_goal
+from modules.stop_conditions import omnidirectional_goal
 
 os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = "hide"
 import pygame
@@ -12,10 +12,12 @@ from Utility.console_logger import ConsoleLogger
 from Utility.raycast import Ray, ray_cast
 from Utility.collision_system import CollisionSystem
 from Objects.car import Car
+from Objects.staticObstacle import StaticObstacle
 
 from modules.environment_modules import Borders
 from modules.reward_functions import GoalEndReward, TimePenalty, CollisionPenalty, DistanceReward
 from modules.stop_conditions import omnidirectional_goal, StepLimit, CollisionStop
+
 
 
 class SimulationEnvironment:
@@ -41,6 +43,7 @@ class SimulationEnvironment:
             car_params = {}
         self.discrete = discrete
         self.car = Car(discrete_input=discrete, **car_params)
+        
         self.action_size = self.car.get_action_size()
 
         self.stop_conditions = stop_conditions
@@ -55,12 +58,16 @@ class SimulationEnvironment:
 
         self.collision_system = None
         self.collision_list = []
+        self.staticObstacle = None
 
         self.running = False
         self.steps = 0
         self.state = None
 
         self.reset_environment()
+
+       
+
 
         self.screen_width = screen_width
         self.screen_height = self.screen_width * self.world_aspect
@@ -72,7 +79,7 @@ class SimulationEnvironment:
                 [0, self.scale, self.screen_height / 2],  # x shear, y scale, y translate
                 [0, 0, 1]  # perspective
             ])
-
+    
         self.render = render
         if self.render:
             pygame.init()
@@ -85,17 +92,37 @@ class SimulationEnvironment:
         self.car.reset()
         self.steps = 0
         self.collision_system = CollisionSystem()
-        self.state = self.get_unified_state()
-
+        
+        # First, get a basic state without goals being properly set
+        initial_state = self.get_unified_state()
+        
+        # Reset all modules including stop conditions which will reset the goal positions
         for module in self.environment_modules:
-            module.reset(state=self.state)
-
+            module.reset(state=initial_state)
+        
         for module in self.stop_conditions:
-            module.reset(state=self.state)
-
+            module.reset(state=initial_state)  # This resets the goal positions
+        
         for module in self.reward_functions:
-            module.reset(state=self.state)
-
+            module.reset(state=initial_state)
+        
+        # Now get the updated state with the properly reset goals
+        self.state = self.get_unified_state()
+        
+        # Remove old obstacle if it exists
+        if self.staticObstacle is not None:
+            if self.staticObstacle in self.environment_modules:
+                self.environment_modules.remove(self.staticObstacle)
+        
+        # Place a new obstacle based on the NEW goal positions
+        self.staticObstacle = self.place_obstacle_near_goal(offset=(0.0, 4.0))
+        
+        # For some reason if i add this second line, it will never despawn
+        self.staticObstacle = self.place_obstacle_near_goal(offset=(0.0, -4.0))
+        
+        # Final state update after adding the obstacle
+        self.state = self.get_unified_state()
+        
         self.running = True
 
     def get_unified_state(self):
@@ -334,3 +361,54 @@ class SimulationEnvironment:
                f"\n]")
 
         return out
+    
+    def place_obstacle_near_goal(self, offset=(1.0, 0.0), parking_angle=0, color=None):
+        """
+        Places a car-like obstacle at a fixed offset from the first goal.
+        
+        Args:
+            offset: (x, y) offset from goal position
+            parking_angle: angle in degrees for the parked car (0 = facing right)
+            color: color tuple for the obstacle (defaults to blue if None)
+        """
+        goals = []
+        for module in self.state['stop_conditions']:
+            goals += module.get('goals', [])
+        if not goals:
+            raise ValueError("No goals found to place obstacle near")
+
+        goal_x, goal_y, goal_angle = goals[0]  # Get first goal
+        obs_x = goal_x + offset[0]
+        obs_y = goal_y + offset[1]
+
+        # If no color specified, choose a random color that's not red
+        if color is None:
+            colors = [
+                (0, 100, 200),  # Blue
+                (0, 150, 0),    # Green
+                (100, 100, 0),  # Dark yellow
+                (100, 0, 100),  # Purple
+                (0, 150, 150),  # Teal
+                (50, 50, 50),   # Dark gray
+                (100, 100, 100) # Light gray
+            ]
+            color = random.choice(colors)
+        
+        # Create the obstacle
+        static_obs = StaticObstacle(
+            position=(obs_x, obs_y),
+            direction=parking_angle,
+            width=2.0,
+            length=4.7,
+            color=color
+        )
+        
+        # Add to environment modules
+        self.environment_modules.append(static_obs)
+        
+        # Update state
+        self.state = self.get_unified_state()
+        
+        return static_obs
+
+

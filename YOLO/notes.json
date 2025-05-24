@@ -1,0 +1,21 @@
+{
+  "categories": [
+    {
+      "id": 0,
+      "name": "Controlled Car"
+    },
+    {
+      "id": 1,
+      "name": "Goal"
+    },
+    {
+      "id": 2,
+      "name": "Obstacle Car"
+    }
+  ],
+  "info": {
+    "year": 2025,
+    "version": "1.0",
+    "contributor": "Label Studio"
+  }
+}

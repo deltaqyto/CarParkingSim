@@ -1,0 +1,9 @@
+path: C:\Users\jackg\Documents\Group Project\CarParkingSim\data
+train: train/images
+val: validation/images
+test: test/images
+nc: 3
+names:
+- Controlled Car
+- Goal
+- Obstacle Car
