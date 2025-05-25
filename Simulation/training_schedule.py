@@ -3,10 +3,11 @@ from multiprocessing import cpu_count
 from Simulation.environments import get_basic_env
 
 class GenericTrainingSchedule:
-    def __init__(self):
+    def __init__(self, start_from_env=0):
         self.environments = []
         self.parameters = []
-        self.current_environment = 0
+        self.start_from_env = start_from_env
+        self.current_environment = start_from_env
 
         self.last_params = {}
 
@@ -21,7 +22,7 @@ class GenericTrainingSchedule:
         return env, populated_params
 
     def get_nth_environment(self, env_number):
-        env = self.environments[env_number]
+        env = self.environments[env_number + self.start_from_env]
 
         populated_params = {}
         for i in range(env_number + 1):
@@ -32,7 +33,7 @@ class GenericTrainingSchedule:
         return env, populated_params
 
     def get_num_environments(self):
-        return len(self.environments)
+        return len(self.environments) - self.start_from_env
 
     def get_digest(self):
         env_strings = [env().get_digest() for env in self.environments]
