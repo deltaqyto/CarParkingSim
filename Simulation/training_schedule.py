@@ -9,20 +9,21 @@ class GenericTrainingSchedule:
         self.start_from_env = start_from_env
         self.current_environment = start_from_env
 
-        self.last_params = {}
-
     def get_next_environment(self):
         env = self.environments[self.current_environment]
-        params = self.parameters[self.current_environment] if self.current_environment < len(self.parameters) else {}
 
-        populated_params = {**self.last_params, **params}  # Update with previous parameters
-        self.last_params = populated_params
+        populated_params = {}
+        for i in range(self.current_environment + 1):
+            if i > len(self.parameters) - 1:
+                break
+            populated_params = {**populated_params, **self.parameters[i]}
 
         self.current_environment += 1
         return env, populated_params
 
     def get_nth_environment(self, env_number):
-        env = self.environments[env_number + self.start_from_env]
+        env_number = env_number + self.start_from_env
+        env = self.environments[env_number]
 
         populated_params = {}
         for i in range(env_number + 1):
