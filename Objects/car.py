@@ -3,6 +3,8 @@ from Utility.console_logger import ConsoleLogger
 from Objects.obstacles import RectObstacle
 import pygame
 import numpy as np
+import colorsys
+from random import uniform
 
 
 def smoothstep(start, stop, steps, inclusive=False):
@@ -11,12 +13,23 @@ def smoothstep(start, stop, steps, inclusive=False):
     return [start + step * n for n in range(steps)]
 
 
-def render_car(surface, transform, position, direction_vector, width=2.0, length=4.7, current_steer=0.0, color=(255, 0, 0), wheel_width_offset=1.4, wheel_length_offset=0.1):
+def render_car(surface, transform, position, direction_vector=None, car_angle=None, width=2.0, length=4.7, current_steer=0.0, color=None, wheel_width_offset=1.4, wheel_length_offset=0.1):
     #wheel_width_offset: 1.0 = wheels at car edge, >1.0 = wheels outside car, <1.0 = wheels inside car
     #wheel_length_offset: position along car length (0.0 = front, 1.0 = back)
 
+    if color is None:
+        hue = uniform(30, 330) / 360.0
+        saturation = uniform(0.6, 1.0)
+        value = uniform(0.6, 1.0)
+
+        # Convert HSV to RGB and scale to 0-255
+        rgb_float = colorsys.hsv_to_rgb(hue, saturation, value)
+        color = tuple(int(c * 255) for c in rgb_float)
+
     # Calculate car dimensions and orientation
-    car_angle = -np.arctan2(direction_vector[1], direction_vector[0]) * 180 / pi
+    if car_angle is None:
+        assert direction_vector is not None
+        car_angle = -np.arctan2(direction_vector[1], direction_vector[0]) * 180 / pi
 
     # Apply transform to car position
     pos_vec = np.array([position[0], position[1], 1])
@@ -250,7 +263,7 @@ class Car:
         return 2
 
     def draw(self, surface, transform_matrix):
-        render_car(surface, transform_matrix, self.position, self.direction_vector, self.width, self.length, self.current_steer, self.color)
+        render_car(surface, transform_matrix, position=self.position, direction_vector=self.direction_vector, width=self.width, length=self.length, current_steer=self.current_steer, color=self.color)
 
     def calculate_aabb(self):
         """Calculate axis-aligned bounding box from corners"""
