@@ -2,17 +2,16 @@ import os
 import random
 import string
 import torch
+from time import time
 
 # Import shared functionality
 from AI.train_utils import setup_model_training, train_model
 
 
-def do_curriculum_learning(curriculum):
-    search_path = "models"  # Change this if you store your models elsewhere
-    override_file_name = None  # Set a model name. Leave as none for auto-generated
-
+def do_curriculum_learning(curriculum, override_file_name=None, search_path = "models"):
     base_train_id = ''.join(random.choices(string.ascii_uppercase + string.digits, k=4)) if override_file_name is None else override_file_name
     previous_train_id = None
+    start_time = time()
 
     print("\n======= TD3 Car Curriculum Trainer=======\n")
     for lesson_num in range(curriculum.get_num_environments()):
@@ -58,3 +57,5 @@ def do_curriculum_learning(curriculum):
         previous_train_id = train_id
         if exit_trainer:
             return
+
+    print(f"Training took {round(time() - start_time)} seconds")
