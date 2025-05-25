@@ -82,15 +82,34 @@ class SimulationEnvironment:
         self.collision_system = CollisionSystem()
         self.state = self.get_unified_state()
 
+        self.state['environment'] = []
+        self.state['stop_conditions'] = []
+        self.state['reward_functions'] = []
         for module in self.environment_modules:
             module.reset('environment', state=self.state)
+            self.state['environment'].append(module.get_unified_state())
+
+        self.state['obstacles'] = []
+        for module in self.state['environment']:
+            obstacle = module.get('obstacles', [])
+            self.state['obstacles'] += obstacle
 
         for module in self.stop_conditions:
             module.reset('stop', state=self.state)
+            self.state['stop_conditions'].append(module.get_unified_state())
 
         for module in self.reward_functions:
             module.reset('reward', state=self.state)
+            self.state['reward_functions'].append(module.get_unified_state())
 
+        for obstacle in self.state['obstacles']:
+            self.collision_system.add_object(obstacle)
+
+        self.collision_list = self.collision_system.collide_against(self.car)
+        if self.collision_list:
+            # Protect unwinnable situations
+            self.reset_environment()
+            
         self.running = True
 
     def get_unified_state(self):
@@ -133,6 +152,8 @@ class SimulationEnvironment:
             ray_distances_norm.append(norm_distance)
 
         goals = []
+        for module in self.state['environment']:
+            goals += module.get('goals', [])
         for module in self.state['stop_conditions']:
             goals += module.get('goals', [])
         if not goals:
@@ -302,7 +323,7 @@ class SimulationEnvironment:
         for module in self.stop_conditions:
             module.render(self.screen, self.transform)
 
-        # self.collision_system.draw_debug(self.screen, self.transform)
+        self.collision_system.draw_debug(self.screen, self.transform)
 
         self.car.draw(self.screen, self.transform)
 

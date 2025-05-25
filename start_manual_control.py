@@ -63,7 +63,7 @@ if __name__ == "__main__":
             print(f"Episode reward: {rewards}")
             rewards = 0
             sim_env.reset_environment()
-
+            print(state['stop_reasons'])
         if 'User Quit' in state['stop_reasons']:
             break
 

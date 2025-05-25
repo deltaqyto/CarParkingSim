@@ -20,9 +20,6 @@ class Borders(GenericEnvironment):
                             RectObstacle([self.world_width/2 - self.wall_width/2, 0], [self.wall_width, self.world_height]),
                             RectObstacle([-self.world_width/2 + self.wall_width/2, 0], [self.wall_width, self.world_height])]
 
-        for rect in self.collision_rects:
-            state['collision_module'].add_object(rect)
-
     def render(self, screen, transform_matrix):
         for rect in self.collision_rects:
             rect.draw(screen, transform_matrix)
