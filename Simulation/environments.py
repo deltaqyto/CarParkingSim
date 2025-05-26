@@ -1,7 +1,7 @@
 from Simulation.simulation_environment import SimulationEnvironment
 
 # Yes, these might show as import errors. It resolves at runtime
-from modules.environment_modules import Borders
+from modules.environment_modules import Borders, ParkingLotModule
 from modules.reward_functions import GoalEndReward, TimePenalty, CollisionPenalty, DistanceReward
 from modules.stop_conditions import bidirectional_goal, StepLimit, CollisionStop
 
@@ -19,7 +19,7 @@ def get_basic_env(render=False, goal_size=1, angle_tolerance=1):
 
     # Register your modules here
     # Environment modules can draw rectangles to the screen (or other items). They execute first in the chain
-    environment_modules = [Borders()]
+    environment_modules = [Borders(), ParkingLotModule()]
 
     # Stop conditions run second. They also get to render to the screen, and decide whether to stop the current episode
     # There is no safety mechanism if you forget to add a step limit. Always ensure the environment will stop
