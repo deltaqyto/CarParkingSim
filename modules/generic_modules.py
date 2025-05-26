@@ -36,3 +36,12 @@ class GenericStop(GenericModule):
 
     def render(self, screen, transform):
         pass
+
+
+class GenericObservation(GenericModule):
+    def __init__(self):
+        super().__init__()
+
+    def get_observation(self, state, observation):
+        # Observation input contains info from previous modules if multiple modules are strung together
+        raise NotImplementedError("Tried to get observation from generic module")
