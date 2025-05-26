@@ -1,5 +1,6 @@
 from modules.generic_modules import GenericEnvironment
 from Objects.obstacles import RectObstacle
+from Objects.car import Car
 
 
 class Borders(GenericEnvironment):
@@ -38,6 +39,7 @@ from Objects.obstacles import RectObstacle
 from Objects.car import Car
 from random import choice, randint, sample
 
+# Change the configuration of the environment by changing the configuration parameter
 class ParkingLotModule(GenericEnvironment):  # < Recommend renaming this to something else, and making a fresh module for it, instead of building on the same module
     def __init__(self, wall_width=2, configuration=0):  # < Configuration should be added to the digest below
         super().__init__()
