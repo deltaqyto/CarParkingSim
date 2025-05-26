@@ -1,4 +1,7 @@
 import os
+
+from Ai.BigProj.Simulation.environments import get_basic_env
+
 os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = "hide"
 import pygame
 import numpy as np
@@ -15,7 +18,9 @@ from pyinstrument import Profiler # pip install pygame numpy pyinstrument
 if __name__ == "__main__":
     render = True
     instrument = False
-    sim_env = SimulationEnvironment(render=render)
+
+    from Simulation.environments import get_basic_env
+    sim_env = get_basic_env(render, 2, 1.57)()
     print('=' * 20 + " Digest " + '=' * 20)
     print(sim_env.get_digest())
     print('=' * 20 + " End Digest " + '=' * 20)
