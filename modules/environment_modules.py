@@ -137,4 +137,4 @@ class ParkingLotModule(GenericEnvironment):  # < Recommend renaming this to some
                f"wall_width={self.wall_width})"  # ClassName(parameter={parameter} ... )
 
     def get_unified_state(self):  # This one has some quirks. 'obstacles' is a special name. if you want something to have collision, it needs to be under this name. So your cars and other obstacles won't have collision currently. But breaking it out like this is a good touch.
-        return {'obstacles': self.collision_rects,'static_cars': self.static_cars, 'static_obstacles': self.obstacles}
+        return {'name': 'ParkingLot', 'obstacles': self.collision_rects,'static_cars': self.static_cars, 'static_obstacles': self.obstacles}

@@ -6,3 +6,4 @@ __pycache__/
 # Ignore directories
 models/
 profile_results/
+/yolo_output/

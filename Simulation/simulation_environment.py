@@ -134,6 +134,7 @@ class SimulationEnvironment:
         state = {
             'steps': self.steps,
             'car': self.car.get_unified_state(),
+            'car_obj': self.car,
             'collision_module': self.collision_system,
             'collisions': self.collision_list,
             'environment': environment_module_state,
