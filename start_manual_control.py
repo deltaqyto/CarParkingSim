@@ -58,6 +58,11 @@ if __name__ == "__main__":
         #print(state)
         rewards += reward
         step_count += 1
+        
+        car_position = state['car']['position']
+        car_angle = state['car']['angle']
+        print(f"\rCar Position: ({car_position[0]:.2f}, {car_position[1]:.2f}) Angle: {car_angle:.2f}°", end='')
+
 
         if done:
             print(f"Episode reward: {rewards}")
