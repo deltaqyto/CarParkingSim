@@ -14,7 +14,7 @@ device: cpu
 workers: 8
 project: runs/detect
 name: train
-exist_ok: false
+exist_ok: true
 pretrained: true
 optimizer: auto
 verbose: true

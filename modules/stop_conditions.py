@@ -130,7 +130,7 @@ import numpy as np
 
 
 class YOLOGoalStop(GenericStop):
-    def __init__(self, goal_radius=0.4):
+    def __init__(self, goal_radius=0.4):  
         super().__init__()
         self.goal_radius = goal_radius
         self.goals_from_yolo = []
@@ -189,13 +189,13 @@ class YOLOGoalStop(GenericStop):
             goal_screen = transform_matrix @ np.array([goal_x, goal_y, 1])
             goal_screen_pos = (int(goal_screen[0]), int(goal_screen[1]))
             
-            # Calculate radius in screen coordinates
-            radius_world = self.goal_radius
-            radius_screen = int(radius_world * transform_matrix[0, 0])  # Use x-scale
+            # Calculate radius in screen coordinates - make even smaller
+            radius_world = self.goal_radius * 0.5  # Make visual radius even smaller
+            radius_screen = max(3, int(radius_world * transform_matrix[0, 0]))  # Minimum 3 pixels
             
-            # Draw goal circle (green with red border)
-            pygame.draw.circle(screen, (0, 255, 0), goal_screen_pos, radius_screen, 3)
-            pygame.draw.circle(screen, (255, 0, 0), goal_screen_pos, radius_screen, 2)
+            # Draw goal circle (green with red border) - smaller
+            pygame.draw.circle(screen, (0, 255, 0), goal_screen_pos, radius_screen, 2)
+            pygame.draw.circle(screen, (255, 0, 0), goal_screen_pos, radius_screen, 1)
 
     def get_digest(self):
         return f"YOLOGoalStop(goal_radius={self.goal_radius}, goals_count={len(self.goals_from_yolo)})"

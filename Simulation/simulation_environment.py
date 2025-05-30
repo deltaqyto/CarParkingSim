@@ -49,13 +49,13 @@ class SimulationEnvironment:
         self.reward_functions = reward_functions
         self.observation_modules = observation_modules
         if self.stop_conditions is None:
-            self.stop_conditions = [StepLimit(step_limit=200), YOLOGoalStop(goal_radius=0.4)]
+            self.stop_conditions = [StepLimit(step_limit=200), YOLOGoalStop(goal_radius=0.8)]
         
         ##Yolo adaptation with ParkingLotModule Configuration setting
         if self.environment_modules is None:
             self.environment_modules = [
                 Borders(), 
-                ParkingLotModule(configuration=1),
+                ParkingLotModule(configuration=0),
                 YOLOGoalDetector(yolo_model_path="yolov8n.pt")
     ]
         if self.reward_functions is None:

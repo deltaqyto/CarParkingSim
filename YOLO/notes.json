@@ -2,15 +2,15 @@
   "categories": [
     {
       "id": 0,
-      "name": "Controlled Car"
+      "name": "ControlledCar"
     },
     {
       "id": 1,
-      "name": "Goal"
+      "name": "ParkedCar"
     },
     {
       "id": 2,
-      "name": "Obstacle Car"
+      "name": "ParkingSpot"
     }
   ],
   "info": {
