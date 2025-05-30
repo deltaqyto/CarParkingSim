@@ -1,9 +1,10 @@
 from Simulation.simulation_environment import SimulationEnvironment
 
 # Yes, these might show as import errors. It resolves at runtime
-from modules.environment_modules import Borders
+from modules.environment_modules import Borders, ParkingLotModule
 from modules.reward_functions import GoalEndReward, TimePenalty, CollisionPenalty, DistanceReward
 from modules.stop_conditions import bidirectional_goal, StepLimit, CollisionStop
+from modules.observation_modules import ClassicalObservation
 
 # Makes a unique environment for each thread
 def load_env(**kwargs):
@@ -12,14 +13,14 @@ def load_env(**kwargs):
     return func
 
 # Example of how to make an environment with training functions. Make more if you want
-def get_basic_env(render=False, goal_size=1, angle_tolerance=1):
+def get_basic_env(render=False, goal_size=1, angle_tolerance=1, vision=False):
     world_width = 60
     world_aspect = 3 / 4
     world_height = world_width * world_aspect
 
     # Register your modules here
     # Environment modules can draw rectangles to the screen (or other items). They execute first in the chain
-    environment_modules = [Borders()]
+    environment_modules = [Borders(), ParkingLotModule()]
 
     # Stop conditions run second. They also get to render to the screen, and decide whether to stop the current episode
     # There is no safety mechanism if you forget to add a step limit. Always ensure the environment will stop
@@ -35,9 +36,52 @@ def get_basic_env(render=False, goal_size=1, angle_tolerance=1):
                         DistanceReward()]
 
     env = load_env(render=render, world_width=world_width, world_aspect=world_aspect,
-                   stop_conditions=stop_conditions, environment_modules=environment_modules, reward_functions=reward_functions)
+                   stop_conditions=stop_conditions, environment_modules=environment_modules, reward_functions=reward_functions, observation_modules=[ClassicalObservation()], generate_vision=vision)
     # Parameters:
     # render=False, console_logger=None, discrete=False, screen_width=800,
     # stop_conditions=None, car_params=None):
 
+    return env
+
+
+def get_yolo_env(render=False, goal_size=1, angle_tolerance=1, vision=False):
+    from modules.environment_modules import YOLOGoalDetector
+    from modules.stop_conditions import YOLOGoalStop  # You'll need to add this import
+    
+    world_width = 60
+    world_aspect = 3 / 4
+    world_height = world_width * world_aspect
+
+    # YOLO-enabled environment modules - let YOLOGoalDetector find the model automatically
+    environment_modules = [
+        Borders(), 
+        ParkingLotModule(configuration=0),
+        YOLOGoalDetector()  # No path needed - it will find the model automatically
+    ]
+
+    # YOLO-enabled stop conditions
+    stop_conditions = [
+        StepLimit(step_limit=200),
+        CollisionStop(),
+        YOLOGoalStop(goal_radius=0.4)  # Use YOLO goals instead of bidirectional_goal
+    ]
+
+    reward_functions = [
+        GoalEndReward(),
+        TimePenalty(),
+        CollisionPenalty(),
+        DistanceReward()
+    ]
+
+    env = load_env(
+        render=render, 
+        world_width=world_width, 
+        world_aspect=world_aspect,
+        stop_conditions=stop_conditions, 
+        environment_modules=environment_modules, 
+        reward_functions=reward_functions, 
+        observation_modules=[ClassicalObservation()], 
+        generate_vision=vision
+    )
+    
     return env

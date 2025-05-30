@@ -20,7 +20,7 @@ class GenericGoal(GenericStop):
         self.angle_range = angle_range
         self.name = name
 
-    def reset(self, state, region=None, angle_range=None):
+    def reset(self, mode, state, region=None, angle_range=None):
         if region is not None:
             self.region = region
         if angle_range is not None:
@@ -65,60 +65,20 @@ class GenericGoal(GenericStop):
 
         return False, 'Nothing'
 
-    def render(self, screen, transform):
-        goal_position_screen = transform @ np.append(self.goal_position, 1)
-
-        origin_point = [0, 0]
-        radius_point = [self.goal_size, 0]  # A point goal_size away from origin along x-axis
-
-        # Transform points
-        origin_screen = transform @ np.append(origin_point, 1)
-        radius_screen = transform @ np.append(radius_point, 1)
-
-        # Calculate scaled radius
-        dx = radius_screen[0] - origin_screen[0]
-        dy = radius_screen[1] - origin_screen[1]
-        scaled_radius = int(np.sqrt(dx ** 2 + dy ** 2))
-
-        # Draw goal circle
-        pygame.draw.circle(
-            screen,
-            (0, 255, 0),  # Green color
-            (int(goal_position_screen[0]), int(goal_position_screen[1])),
-            scaled_radius,  # Use the scaled radius instead of fixed value
-            0  # Filled circle
-        )
-
-        # Draw goal direction indicator
-        if self.angle_tolerance < pi:
-            # Calculate end point for direction line
-            direction_length = 2  # Length of the direction indicator
-            goal_direction = np.array([cos(self.goal_angle), sin(self.goal_angle)])
-            direction_end = self.goal_position + goal_direction * direction_length
-            direction_end_screen = transform @ np.append(direction_end, 1)
-
-            # Draw line indicating orientation
-            pygame.draw.line(
-                screen,
-                (255, 255, 0),  # Yellow color
-                (int(goal_position_screen[0]), int(goal_position_screen[1])),
-                (int(direction_end_screen[0]), int(direction_end_screen[1])),
-                3  # Line width
-            )
-
-            # If double-sided, draw opposing direction line
-            if self.bidirectional:
-                goal_direction = np.array([cos(self.goal_angle), sin(self.goal_angle)])
-                opposite_end = self.goal_position - goal_direction * direction_length
-                opposite_end_screen = transform @ np.append(opposite_end, 1)
-
-                pygame.draw.line(
-                    screen,
-                    (255, 255, 0),  # Yellow color
-                    (int(goal_position_screen[0]), int(goal_position_screen[1])),
-                    (int(opposite_end_screen[0]), int(opposite_end_screen[1])),
-                    3  # Line width
-                )
+    def render(self, screen, transform_matrix):
+        # Render the YOLO goals as circles
+        for goal_x, goal_y, goal_angle in self.goals_from_yolo:
+            # Transform goal position to screen coordinates
+            goal_screen = transform_matrix @ np.array([goal_x, goal_y, 1])
+            goal_screen_pos = (int(goal_screen[0]), int(goal_screen[1]))
+            
+            # Calculate radius in screen coordinates - make even smaller
+            radius_world = self.goal_radius * 0.5  # Make visual radius even smaller
+            radius_screen = max(3, int(radius_world * transform_matrix[0, 0]))  # Minimum 3 pixels
+            
+            # Draw goal circle (green with red border) - smaller
+            pygame.draw.circle(screen, (0, 255, 0), goal_screen_pos, radius_screen, 2)
+            pygame.draw.circle(screen, (255, 0, 0), goal_screen_pos, radius_screen, 1)
 
     def get_unified_state(self):
         return {'goals': [[*self.goal_position, self.goal_angle]],
@@ -162,3 +122,87 @@ class CollisionStop(GenericStop):
         if state['collisions']:
             return True, 'Collision'
         return False, 'Nothing'
+
+
+from modules.generic_modules import GenericStop
+import pygame
+import numpy as np
+
+
+class YOLOGoalStop(GenericStop):
+    def __init__(self, goal_radius=0.4):
+        super().__init__()
+        self.goal_radius = goal_radius
+        self.goals_from_yolo = []
+
+    def reset(self, mode, state=None):
+        # Extract goals from YOLO detector in environment modules
+        self.goals_from_yolo = []
+        
+        if state and 'environment' in state:
+            for module_state in state['environment']:
+                if module_state.get('name') == 'YOLOGoals':
+                    # Get the formatted goals (x, y, angle) from YOLO detector
+                    yolo_goals = module_state.get('goals', [])
+                    self.goals_from_yolo = yolo_goals
+                    print(f"YOLOGoalStop: Found {len(yolo_goals)} YOLO goals")
+                    break
+        
+        # Don't raise error if no goals found initially - YOLO needs time to detect
+        if not self.goals_from_yolo:
+            print("YOLOGoalStop: No YOLO goals found initially, will wait for detection")
+
+    def check_stop(self, state):
+        # Update goals from current state (in case YOLO detected new ones)
+        self._update_goals_from_state(state)
+        
+        if not self.goals_from_yolo:
+            return False, ""  # No goals yet, keep running
+        
+        car_position = np.array(state['car']['position'])
+        
+        # Check if car is close enough to any YOLO goal
+        for goal_x, goal_y, goal_angle in self.goals_from_yolo:
+            goal_position = np.array([goal_x, goal_y])
+            distance = np.linalg.norm(car_position - goal_position)
+            
+            if distance <= self.goal_radius:
+                return True, f"Reached YOLO goal at ({goal_x:.1f}, {goal_y:.1f})"
+        
+        return False, ""
+
+    def _update_goals_from_state(self, state):
+        """Update goals from current state in case YOLO detected new ones"""
+        if state and 'environment' in state:
+            for module_state in state['environment']:
+                if module_state.get('name') == 'YOLOGoals':
+                    new_goals = module_state.get('goals', [])
+                    if len(new_goals) != len(self.goals_from_yolo):
+                        self.goals_from_yolo = new_goals
+                        print(f"YOLOGoalStop: Updated to {len(new_goals)} YOLO goals")
+                    break
+
+    def render(self, screen, transform_matrix):
+        # Render the YOLO goals as circles
+        for goal_x, goal_y, goal_angle in self.goals_from_yolo:
+            # Transform goal position to screen coordinates
+            goal_screen = transform_matrix @ np.array([goal_x, goal_y, 1])
+            goal_screen_pos = (int(goal_screen[0]), int(goal_screen[1]))
+            
+            # Calculate radius in screen coordinates
+            radius_world = self.goal_radius
+            radius_screen = int(radius_world * transform_matrix[0, 0])  # Use x-scale
+            
+            # Draw goal circle (green with red border)
+            pygame.draw.circle(screen, (0, 255, 0), goal_screen_pos, radius_screen, 3)
+            pygame.draw.circle(screen, (255, 0, 0), goal_screen_pos, radius_screen, 2)
+
+    def get_digest(self):
+        return f"YOLOGoalStop(goal_radius={self.goal_radius}, goals_count={len(self.goals_from_yolo)})"
+
+    def get_unified_state(self):
+        return {
+            'name': 'YOLOGoalStop',
+            'goals': self.goals_from_yolo,  # Provide goals for the simulation
+            'goal_radius': self.goal_radius
+        }

@@ -5,8 +5,6 @@ from modules.stop_conditions import omnidirectional_goal
 os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = "hide"
 import pygame
 import numpy as np
-from math import pi
-import random
 
 from Utility.console_logger import ConsoleLogger
 from Utility.raycast import Ray, ray_cast
@@ -14,17 +12,17 @@ from Utility.collision_system import CollisionSystem
 from Objects.car import Car
 from Objects.staticObstacle import StaticObstacle
 
-from modules.environment_modules import Borders
+from modules.environment_modules import Borders, YOLOGoalDetector, ParkingLotModule
 from modules.reward_functions import GoalEndReward, TimePenalty, CollisionPenalty, DistanceReward
-from modules.stop_conditions import omnidirectional_goal, StepLimit, CollisionStop
+from modules.stop_conditions import omnidirectional_goal, StepLimit, CollisionStop, YOLOGoalStop
 
 
 
 class SimulationEnvironment:
     def __init__(self, render=False, console_logger=None, discrete=False, screen_width=800,
-                 reward_functions=None, environment_modules=None, world_width=60, world_aspect=3/4,
+                 reward_functions=None, environment_modules=None, observation_modules=None, world_width=60, world_aspect=3/4,
                  stop_conditions=None, car_params=None, delta_time=0.4, substeps=2,
-                 rays=12, max_ray_distance=10):
+                 rays=12, max_ray_distance=10, generate_vision=False):
         self.console_logger = ConsoleLogger('warning') if console_logger is None else console_logger
         self.world_size = [world_width, 0]
         self.world_aspect = world_aspect
@@ -33,8 +31,8 @@ class SimulationEnvironment:
         self.delta_time = delta_time
         self.substeps = substeps
         self.rays = rays
-        self.raycasts = [1 for _ in range(self.rays)]
         self.max_ray_distance = max_ray_distance
+        self.generate_vision = generate_vision
 
         self.observation = None
         self.observation_size = 19
@@ -49,12 +47,21 @@ class SimulationEnvironment:
         self.stop_conditions = stop_conditions
         self.environment_modules = environment_modules
         self.reward_functions = reward_functions
+        self.observation_modules = observation_modules
         if self.stop_conditions is None:
-            self.stop_conditions = [StepLimit(step_limit=200), omnidirectional_goal()]
+            self.stop_conditions = [StepLimit(step_limit=200), YOLOGoalStop(goal_radius=0.4)]
+        
+        ##Yolo adaptation with ParkingLotModule Configuration setting
         if self.environment_modules is None:
-            self.environment_modules = [Borders()]
+            self.environment_modules = [
+                Borders(), 
+                ParkingLotModule(configuration=1),
+                YOLOGoalDetector(yolo_model_path="yolov8n.pt")
+    ]
         if self.reward_functions is None:
             self.reward_functions = [GoalEndReward()]
+        if self.observation_modules is None:
+            self.observation_modules = [ClassicalObservation()]
 
         self.collision_system = None
         self.collision_list = []
@@ -81,6 +88,13 @@ class SimulationEnvironment:
             ])
     
         self.render = render
+
+        self.vision_surface = None
+        if self.generate_vision:
+            pygame.init()
+            self.vision_surface = pygame.surface.Surface((self.screen_width, self.screen_height))
+            self.font = pygame.font.SysFont(None, 36)
+
         if self.render:
             pygame.init()
             self.screen = pygame.display.set_mode((self.screen_width, self.screen_height))
@@ -92,48 +106,31 @@ class SimulationEnvironment:
         self.car.reset()
         self.steps = 0
         self.collision_system = CollisionSystem()
-        
-        # First, get a basic state without goals being properly set
-        initial_state = self.get_unified_state()
-        
-        # Reset all modules including stop conditions which will reset the goal positions
+        self.state = self.get_unified_state()
+
         for module in self.environment_modules:
-            module.reset(state=initial_state)
-        
+            module.reset('environment', state=self.state)
+
         for module in self.stop_conditions:
-            module.reset(state=initial_state)  # This resets the goal positions
-        
+            module.reset('stop', state=self.state)
+
         for module in self.reward_functions:
-            module.reset(state=initial_state)
-        
-        # Now get the updated state with the properly reset goals
-        self.state = self.get_unified_state()
-        
-        # Remove old obstacle if it exists
-        if self.staticObstacle is not None:
-            if self.staticObstacle in self.environment_modules:
-                self.environment_modules.remove(self.staticObstacle)
-        
-        # Place a new obstacle based on the NEW goal positions
-        self.staticObstacle = self.place_obstacle_near_goal(offset=(0.0, 4.0))
-        
-        # For some reason if i add this second line, it will never despawn
-        self.staticObstacle = self.place_obstacle_near_goal(offset=(0.0, -4.0))
-        
-        # Final state update after adding the obstacle
-        self.state = self.get_unified_state()
-        
+            module.reset('reward', state=self.state)
+
         self.running = True
 
     def get_unified_state(self):
         environment_module_state = [module.get_unified_state() for module in self.environment_modules]
+
         obstacles = []
         for module in environment_module_state:
             obstacle = module.get('obstacles', [])
             obstacles += obstacle
+
         state = {
             'steps': self.steps,
             'car': self.car.get_unified_state(),
+            'car_obj': self.car,
             'collision_module': self.collision_system,
             'collisions': self.collision_list,
             'environment': environment_module_state,
@@ -144,37 +141,44 @@ class SimulationEnvironment:
             'delta_time': self.delta_time,
             'substeps': self.substeps,
             'obstacles': obstacles,
-            'raycasts': self.raycasts,
+            'raycasts': None,
+            'raycasts_true': None,
+            'closest_goal': None,
         }
 
-        return state
-
-    def get_observation(self):
         # Cast rays and get distances
         ray_distances = []
-        car_heading = np.arctan2(self.car.direction_vector[1], self.car.direction_vector[0])
+        ray_distances_norm = []
 
         for i in range(self.rays):
-            angle = i * (2 * np.pi / self.rays) + car_heading
+            angle = i * (2 * np.pi / self.rays) + self.car.get_angle()
             ray_dir = np.array([np.cos(angle), np.sin(angle)])
             ray = Ray(self.car.position, ray_dir)
-            distance, _, _ = ray_cast(ray, self.state['obstacles'])
+            distance, _, _ = ray_cast(ray, state['obstacles'])
             norm_distance = min(distance / self.max_ray_distance, 1.0)
-            ray_distances.append(norm_distance)
-
-        goals = []
-        for module in self.state['stop_conditions']:
-            goals += module.get('goals', [])
-        if not goals:
-            raise ValueError(f"No goals found in stop condition unified states")
+            ray_distances.append(distance)
+            ray_distances_norm.append(norm_distance)
+        state['raycasts'] = ray_distances_norm
+        state['raycasts_true'] = ray_distances
 
         min_goal_distance = 1e6
         closest_goal = None
-        car_angle = self.car.get_angle()
+
+        car_heading = np.arctan2(state['car']['direction_vector'][1], state['car']['direction_vector'][0])
+
+        goals = []
+        for module in state['environment']:
+            goals += module.get('goals', [])
+        for module in state['stop_conditions']:
+            goals += module.get('goals', [])
+        if not goals:
+            print("Warning: No goals found yet - YOLO may need time to detect parking spots")
+            # Create a dummy goal to prevent crash - will be replaced when YOLO detects
+            goals = [(0, 0, 0)]  # Temporary goal at origin
 
         # Create rotation matrix for transforming to car's frame
-        cos_angle = np.cos(-car_angle)  # Negative angle to rotate world to car frame
-        sin_angle = np.sin(-car_angle)
+        cos_angle = np.cos(-car_heading)  # Negative angle to rotate world to car frame
+        sin_angle = np.sin(-car_heading)
         rotation_matrix = np.array([
             [cos_angle, -sin_angle],
             [sin_angle, cos_angle]
@@ -182,8 +186,8 @@ class SimulationEnvironment:
 
         for x, y, goal_angle in goals:
             # Calculate distance in world frame
-            relative_goal_x = x - self.car.position[0]
-            relative_goal_y = y - self.car.position[1]
+            relative_goal_x = x - state['car']['position'][0]
+            relative_goal_y = y - state['car']['position'][1]
             goal_distance = np.sqrt(relative_goal_x ** 2 + relative_goal_y ** 2)
 
             if goal_distance >= min_goal_distance:
@@ -196,27 +200,28 @@ class SimulationEnvironment:
             relative_goal_car = rotation_matrix @ relative_goal_world
 
             # Also transform the goal angle to car's frame
-            relative_goal_angle = (goal_angle - car_angle) % (2 * np.pi)
+            relative_goal_angle = (goal_angle - car_heading) % (2 * np.pi)
             # Normalize to [-π, π] range
             if relative_goal_angle > np.pi:
                 relative_goal_angle -= 2 * np.pi
 
             # Normalize relative goal position
-            max_distance = np.sqrt(self.world_size[0] ** 2 + self.world_size[1] ** 2)
+            max_distance = np.sqrt(state['world_size'][0] ** 2 + state['world_size'][1] ** 2)
             closest_goal = [
                 relative_goal_car[0] / max_distance,
                 relative_goal_car[1] / max_distance,
                 relative_goal_angle
             ]
 
-        self.raycasts = ray_distances
-        self.state['raycasts'] = self.raycasts
-        self.state['closest_goal'] = {'car_frame': closest_goal, 'distance': min_goal_distance}
-        observation = [
-            *self.state['car']['observation'],
-            *ray_distances,
-            *closest_goal,
-        ]
+        state['closest_goal'] = {'car_frame': closest_goal, 'distance': min_goal_distance}
+
+        return state
+
+    def get_observation(self):
+        observation = [0.0 for _ in range(19)]
+
+        for observation_module in self.observation_modules:
+            observation = observation_module.get_observation(self.state, observation)
 
         self.console_logger.debug(self, f"Sending observation: {observation}")
         return observation
@@ -250,6 +255,12 @@ class SimulationEnvironment:
         stop_condition_triggered = is_stopping
         self.state['stop_reasons'] = reasons
 
+        if self.generate_vision:
+            self.render_frame_lightweight()
+
+        self.state['vision'] = pygame.surfarray.array3d(self.vision_surface) if self.vision_surface is not None else None
+        self.observation = self.get_observation()
+
         if self.render:
             self.render_frame()
             self.clock.tick(30)
@@ -260,8 +271,6 @@ class SimulationEnvironment:
         self.steps += 1
         if stop_condition_triggered:
             self.complete_simulation(reason=reasons)
-
-        self.observation = self.get_observation()
 
         rewards = 0
         reward_types = {}
@@ -307,18 +316,18 @@ class SimulationEnvironment:
             # Convert direction from car's direction vector
             ray_dir = np.array([np.cos(angle), np.sin(angle)])
 
-            # Create ray starting from car position
-            ray = Ray(self.car.position, ray_dir)
+            # Calculate distance based on raycast value
+            distance = self.state['raycasts'][i] * self.max_ray_distance
 
-            # Cast ray and get collision info
-            distance, hit_point, hit_object = ray_cast(ray, self.state['obstacles'])
+            # Calculate end point
+            hit_point = self.car.position + ray_dir * distance
 
-            # Draw ray as line from car to hit point or max distance
+            # Transform points for drawing
             start_point = self.transform @ np.append(self.car.position, 1)
-            end_point = self.transform @ np.append(hit_point[:2], 1)
+            end_point = self.transform @ np.append(hit_point, 1)
 
-            # Use different color if ray hit something
-            line_color = (255, 0, 0) if hit_object is not None else ray_color
+            # Use red color if ray hit something (< 0.95)
+            line_color = (255, 0, 0) if self.state['raycasts'][i] < 0.95 else ray_color
 
             pygame.draw.line(
                 self.screen,
@@ -331,12 +340,55 @@ class SimulationEnvironment:
         for module in self.stop_conditions:
             module.render(self.screen, self.transform)
 
-        # self.collision_system.draw_debug(self.screen, self.transform)
+        self.collision_system.draw_debug(self.screen, self.transform)
 
         self.car.draw(self.screen, self.transform)
 
         # Update display
         pygame.display.flip()
+
+    def render_frame_lightweight(self):
+        self.vision_surface.fill((200, 200, 200))
+
+        for module in self.environment_modules:
+            module.render(self.vision_surface, self.transform)
+
+        # # Draw rays from the car
+        # car_heading = np.arctan2(self.car.direction_vector[1], self.car.direction_vector[0])
+        # ray_color = (0, 255, 0)  # Green color for rays
+        #
+        # for i in range(len(self.state['raycasts'])):
+        #     # Calculate ray angle
+        #     angle = i * (2 * np.pi / len(self.state['raycasts'])) + car_heading
+        #
+        #     # Convert direction from car's direction vector
+        #     ray_dir = np.array([np.cos(angle), np.sin(angle)])
+        #
+        #     # Calculate distance based on raycast value
+        #     distance = self.state['raycasts'][i] * self.max_ray_distance
+        #
+        #     # Calculate end point
+        #     hit_point = self.car.position + ray_dir * distance
+        #
+        #     # Transform points for drawing
+        #     start_point = self.transform @ np.append(self.car.position, 1)
+        #     end_point = self.transform @ np.append(hit_point, 1)
+        #
+        #     # Use red color if ray hit something (< 0.95)
+        #     line_color = (255, 0, 0) if self.state['raycasts'][i] < 0.95 else ray_color
+        #
+        #     pygame.draw.line(
+        #         self.vision_surface,
+        #         line_color,
+        #         (int(start_point[0]), int(start_point[1])),
+        #         (int(end_point[0]), int(end_point[1])),
+        #         2
+        #     )
+
+        for module in self.stop_conditions:
+            module.render(self.vision_surface, self.transform)
+
+        self.car.draw(self.vision_surface, self.transform)
 
     def get_digest(self):
         reward_module_strings = []
@@ -348,15 +400,19 @@ class SimulationEnvironment:
         stop_condition_strings = []
         for module in self.stop_conditions:
             stop_condition_strings.append(module.get_digest())
+        observation_strings = []
+        for module in self.observation_modules:
+            observation_strings.append(module.get_digest())
 
         out = (f"SimulationEnvironment(render={self.render}, discrete={self.discrete}, "
                f"screen_size={[self.screen_width, self.screen_height]}, "
                f"world_size={self.world_size}, world_aspect={self.world_aspect}, delta_time={self.delta_time}, substeps={self.substeps}, "
-               f"rays={self.rays}, max_ray_distance={self.max_ray_distance}"
+               f"rays={self.rays}, max_ray_distance={self.max_ray_distance}, generate_vision={self.generate_vision}"
                f"): ["
                f"\n  reward_modules: [\n    " + '\n    '.join(reward_module_strings) +
                f"\n  ]\n  environment_modules: [\n    " + '\n    '.join(environment_module_strings) +
                f"\n  ]\n  stop conditions: [\n    " + '\n    '.join(stop_condition_strings) +
+               f"\n  ]\n  observation modules: [\n    " + '\n    '.join(observation_strings) +
                f"\n  ]\n  car: " + self.car.get_digest() +
                f"\n]")
 
