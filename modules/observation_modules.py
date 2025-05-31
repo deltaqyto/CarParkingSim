@@ -12,7 +12,7 @@ from modules.generic_modules import GenericObservation
 
 
 class ClassicalObservation(GenericObservation):
-    def __init__(self, rays=12, max_ray_distance=10):
+    def __init__(self):
         super().__init__()
 
     def get_observation(self, state, observation):
