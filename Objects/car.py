@@ -109,6 +109,8 @@ def render_car(surface, transform, position, direction_vector=None, car_angle=No
     # Draw the car to the surface
     surface.blit(rotated_car, car_pos_rect)
 
+    return color
+
 
 class Car:
     def __init__(self, origin=None, start_direction=0, width=2, length=4.7,                                                                      # was 10
@@ -170,7 +172,10 @@ class Car:
 
         return [new_x, new_y]
 
-    def reset(self):
+    def reset(self, origin=None, direction=None):
+        self.origin = self.origin if origin is None else origin
+        self.start_direction = self.start_direction if direction is None else direction
+
         self.position = self.origin
         self.speed = 0.0
         self.direction_vector = self.angular_direction_to_vector(self.start_direction)
