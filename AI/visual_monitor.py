@@ -1,4 +1,5 @@
 import os
+import random
 import time
 import threading
 import glob
@@ -43,7 +44,7 @@ def environment_worker(schedule_class, schedule_kwargs, env_index, model_queue, 
                     env.close()
                     schedule = schedule_class(**schedule_kwargs)
                     env_factory = schedule.get_nth_environment(env_index)[0]
-                    env = SimulationWrapper(env_factory, 0, 42)
+                    env = SimulationWrapper(env_factory, 0, random.randint(1, 100000))
 
             # Run episode if we have a model
             if current_model is not None:
