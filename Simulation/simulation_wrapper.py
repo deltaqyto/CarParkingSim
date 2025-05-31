@@ -9,12 +9,16 @@ class SimulationWrapper(gym.Env):
     def __init__(self, environment, rank=0, seed=None):
         super(SimulationWrapper, self).__init__()
         self.env = environment()
+        self.env.reset_environment()
+        _, observation, _, _ = self.env.step([0, 0])
+        self.env.reset_environment()
+
         seed = random.randint(1, 100000) if seed is None else seed
         self.seed(seed + rank)
 
         # 19 inputs, 2 outputs
         self.action_space = gym.spaces.Box(low=-1, high=1, shape=(2,), dtype=np.float32)
-        self.observation_space = gym.spaces.Box(low=-np.inf, high=np.inf, shape=(19,), dtype=np.float32)
+        self.observation_space = gym.spaces.Box(low=-np.inf, high=np.inf, shape=(len(observation),), dtype=np.float32)
 
         self.reset()
 
@@ -29,7 +33,7 @@ class SimulationWrapper(gym.Env):
 
     def step(self, action):
         # Done: Boolean 'is the env done'
-        # Observation: 19 float np.array (car direction (2 components), speed, wheel angle, 12x raycast, goal x, goal y, goal angle)
+        # Observation: float np.array (car direction (2 components), speed, wheel angle, 24x raycast, goal x, goal y, goal angle)
         # Reward: Reward signal computed from modules
         # State: Unified environment state. Contains all information about the simulation. Print it to see the structure
         done, observation, reward, state = self.env.step(action)
