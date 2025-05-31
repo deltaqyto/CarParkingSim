@@ -60,6 +60,19 @@ if __name__ == "__main__":
                 break
 
         done, observation, reward, state = sim_env.step([throttle, steer])
+
+        # Debug: Check if obstacles are in the final state
+        # if step_count % 60 == 0:  # Every 60 frames
+        #     total_obstacles = len(state.get('obstacles', []))
+        #     print(f"DEBUG: Final state has {total_obstacles} obstacles")
+            
+        #     # Check collision system
+        #     if hasattr(sim_env, 'collision_system'):
+        #         print(f"DEBUG: Collision system exists")
+        #         # Try to access collision objects if possible
+        #     else:
+        #         print("DEBUG: No collision system found!")
+        
         #print(state)
         rewards += reward
         step_count += 1

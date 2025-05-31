@@ -117,6 +117,13 @@ class SimulationEnvironment:
         for module in self.reward_functions:
             module.reset('reward', state=self.state)
 
+        # MISSING: Add all obstacles to collision system:
+        self.state = self.get_unified_state()  # Refresh state to get obstacles
+        for obstacle in self.state['obstacles']:
+            self.collision_system.add_object(obstacle)
+        
+        print(f"DEBUG: Added {len(self.state['obstacles'])} obstacles to collision system")
+
         self.running = True
 
     def get_unified_state(self):

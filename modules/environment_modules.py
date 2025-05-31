@@ -31,6 +31,7 @@ class Borders(GenericEnvironment):
                f"wall_width={self.wall_width})"
 
     def get_unified_state(self):
+        #print(f"DEBUG: Borders returning {len(self.collision_rects)} wall obstacles")#
         return {'obstacles': self.collision_rects}
 
 ## ============== Parking Lot Environment =================
@@ -57,10 +58,7 @@ class ParkingLotModule(GenericEnvironment):  # < Recommend renaming this to some
         world_size = state['world_size']
         self.world_width = world_size[0]
         self.world_height = world_size[1]
-        self.collision_rects = [RectObstacle([0, self.world_height/2 - self.wall_width/2], [self.world_width, self.wall_width]),
-                            RectObstacle([0, -self.world_height/2 + self.wall_width/2], [self.world_width, self.wall_width]),
-                            RectObstacle([self.world_width/2 - self.wall_width/2, 0], [self.wall_width, self.world_height]),
-                            RectObstacle([-self.world_width/2 + self.wall_width/2, 0], [self.wall_width, self.world_height])]
+        self.collision_rects = []
         print("Adding static cars.. ")  # In your final code, strongly recommend you do not print anything except errors to the console, to avoid spamming it
 
         # Available colors for cars
@@ -137,8 +135,32 @@ class ParkingLotModule(GenericEnvironment):  # < Recommend renaming this to some
         return f"ParkingLotModule(world_width={self.world_width}, world_height={self.world_height}, "\
                f"wall_width={self.wall_width})"  # ClassName(parameter={parameter} ... )
 
-    def get_unified_state(self):  # This one has some quirks. 'obstacles' is a special name. if you want something to have collision, it needs to be under this name. So your cars and other obstacles won't have collision currently. But breaking it out like this is a good touch.
-        return {'name': 'ParkingLot', 'obstacles': self.collision_rects,'static_cars': self.static_cars, 'static_obstacles': self.obstacles}
+    def get_unified_state(self):
+        # Start with walls (always collidable)
+        all_obstacles = self.collision_rects.copy()
+            
+        # ADD: Only static cars as collision objects (not the obstacles)
+        i=0
+        for car in self.static_cars:
+            car_collision_box = RectObstacle(
+                position=car.position,      
+                size=[car.length, car.width],  
+                angle=car.get_angle(),      
+                color=(255, 0, 0)         
+            )
+            all_obstacles.append(car_collision_box)
+            #print(f"DEBUG: Car {i} at {car.position} -> collision box at {car_collision_box.position}")
+            i = i + 1
+        
+        #print(f"DEBUG: ParkingLotModule returning {len(all_obstacles)} obstacles")
+
+            # DON'T add self.obstacles - these are parking spaces, not collision objects
+            
+        return {
+            'obstacles': all_obstacles,      # Walls + Cars (collidable)
+            'static_cars': self.static_cars, 
+            'static_obstacles': self.obstacles  # Parking spaces (visual only)
+        }
 
 
 from modules.generic_modules import GenericEnvironment
