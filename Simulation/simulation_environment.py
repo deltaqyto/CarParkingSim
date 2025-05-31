@@ -158,7 +158,7 @@ class SimulationEnvironment:
             angle = i * (2 * np.pi / self.rays) + self.car.get_angle()
             ray_dir = np.array([np.cos(angle), np.sin(angle)])
             ray = Ray(self.car.position, ray_dir)
-            distance, _, _ = ray_cast(ray, state['obstacles'])
+            distance, _, _ = ray_cast(ray, state['obstacles'], self.max_ray_distance)
             norm_distance = min(distance / self.max_ray_distance, 1.0)
             ray_distances.append(distance)
             ray_distances_norm.append(norm_distance)
