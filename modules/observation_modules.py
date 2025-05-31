@@ -2,6 +2,7 @@ import numpy as np
 from os import path
 import torch
 import glob
+from random import random
 
 import matplotlib
 import matplotlib.pyplot as plt
@@ -12,19 +13,23 @@ from modules.generic_modules import GenericObservation
 
 
 class ClassicalObservation(GenericObservation):
-    def __init__(self):
+    def __init__(self, rescale_lidar=False, lidar_noise=0.0):
         super().__init__()
+        self.rescale_lidar = rescale_lidar
+        self.lidar_noise = lidar_noise
 
     def get_observation(self, state, observation):
+        rc = state['raycasts']
+        rc = [min(1, max(0, r - self.lidar_noise * random())) for r in rc]
         observation = [
             *state['car']['observation'],
-            *state['raycasts'],
+            *([n * 2 - 1 for n in rc] if self.rescale_lidar else rc),
             *state['closest_goal']['car_frame'],
         ]
         return observation
 
     def get_digest(self):
-        return f'ClassicalObservation()'
+        return f'ClassicalObservation(rescale_lidar={self.rescale_lidar}, lidar_noise={self.lidar_noise})'
 
 
 class VisionRaycastObservation(GenericObservation):
