@@ -8,10 +8,11 @@ from time import time
 from AI.train_utils import setup_model_training, train_model
 
 
-def do_curriculum_learning(curriculum, override_file_name=None, search_path="models", continue_from=None):
+def do_curriculum_learning(curriculum, override_file_name=None, search_path="models", continue_from=None, show_current=False):
     # Handle continue_from logic
     if continue_from:
         base_train_id, start_step = parse_continue_from(continue_from)
+        base_train_id = base_train_id if override_file_name is None else override_file_name
         previous_train_id = continue_from
     else:
         base_train_id = ''.join(random.choices(string.ascii_uppercase + string.digits, k=4)) if override_file_name is None else override_file_name
