@@ -70,16 +70,6 @@ class RaycastResNet(nn.Module):
             ) for _ in range(output_dim)
         ])
 
-        # Old attention based approach. Not in use
-        self.attention = nn.MultiheadAttention(embed_dim=512, num_heads=8, batch_first=True)
-        self.pos_embedding = nn.Parameter(torch.randn(1, output_dim, 512))
-        self.single_head = nn.Sequential(
-            nn.Linear(512, 256),
-            nn.ReLU(),
-            nn.Dropout(0.2),
-            nn.Linear(256, output_dim)
-        )
-
     def _make_layer(self, in_channels, out_channels, blocks, stride=1):
         layers = []
         layers.append(ResidualBlock(in_channels, out_channels, stride))
