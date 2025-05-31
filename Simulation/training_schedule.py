@@ -54,3 +54,56 @@ class BasicTrainingSchedule(GenericTrainingSchedule):
             'net_size': [400, 300],
         }
         self.parameters = [base_params, {'total_timesteps': 1_500_000}]  # The second and third environments run on half the timesteps as the first run, all else is the same
+
+
+class YOLOParkingSchedule(GenericTrainingSchedule):
+    def __init__(self):
+        super().__init__()
+        # Import YOLO environment
+        from Simulation.environments import get_yolo_env
+        
+        # Progressive YOLO parking difficulty - adjust goal radius for curriculum learning
+        self.environments = [
+            get_yolo_env(goal_size=2.5, angle_tolerance=pi/2, render=True)   # Stage 1: Large goal, any angle
+            #get_yolo_env(goal_size=2.0, angle_tolerance=pi/4, render=True),   # Stage 2: Medium goal, loose angle
+            #get_yolo_env(goal_size=1.5, angle_tolerance=pi/6, render=True),   # Stage 3: Smaller goal, tighter angle
+            #get_yolo_env(goal_size=1.0, angle_tolerance=pi/8, render=True)    # Stage 4: Precise parking
+        ]
+
+        # YOLO-optimized training parameters
+        base_params = {
+            'num_envs': min(3, max(1, 3)),  # Slightly more envs for YOLO
+            'action_dim': 2,  # throttle, steering
+            'batch_size': 256,
+            'total_timesteps': 4_000_000,  # More timesteps for YOLO navigation
+            'save_freq': 25000,
+            'eval_episodes': 15,  # More evaluation episodes
+            'seed': 42,
+            'exploration_noise': 0.15,  # Higher exploration for parking
+            'start_timesteps': 40000,  # More random exploration for YOLO environment
+            'buffer_size': 1_500_000,  # Larger buffer for complex parking scenarios
+            'learning_rate': 2e-4,  # Slightly lower LR for stability
+            'net_size': [512, 256],  # Larger network for complex navigation
+        }
+        
+        # Progressive parameter adjustments for each stage
+        self.parameters = [
+            base_params,  # Stage 1: Full exploration
+            {
+                'total_timesteps': 3_500_000,
+                'exploration_noise': 0.12,
+                'start_timesteps': 35000
+            },  # Stage 2: Reduce exploration slightly
+            {
+                'total_timesteps': 3_000_000,
+                'exploration_noise': 0.1,
+                'start_timesteps': 30000,
+                'learning_rate': 1.5e-4
+            },  # Stage 3: Further reduce exploration, lower LR
+            {
+                'total_timesteps': 2_500_000,
+                'exploration_noise': 0.08,
+                'start_timesteps': 25000,
+                'learning_rate': 1e-4
+            }   # Stage 4: Fine-tuning phase
+        ]

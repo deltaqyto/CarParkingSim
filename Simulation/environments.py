@@ -2,7 +2,7 @@ from Simulation.simulation_environment import SimulationEnvironment
 
 # Yes, these might show as import errors. It resolves at runtime
 from modules.environment_modules import Borders, ParkingLotModule
-from modules.reward_functions import GoalEndReward, TimePenalty, CollisionPenalty, DistanceReward
+from modules.reward_functions import GoalEndReward, TimePenalty, CollisionPenalty, DistanceReward, SmoothCollisionPenalty, SmoothDistanceReward, CarProximityPenalty, SmoothDrivingReward
 from modules.stop_conditions import bidirectional_goal, StepLimit, CollisionStop
 from modules.observation_modules import ClassicalObservation
 
@@ -61,16 +61,19 @@ def get_yolo_env(render=False, goal_size=1, angle_tolerance=1, vision=False):
 
     # YOLO-enabled stop conditions
     stop_conditions = [
-        StepLimit(step_limit=200),
+        StepLimit(step_limit=400), #slightly increased steps 
         CollisionStop(),
-        YOLOGoalStop(goal_radius=0.4)  # Use YOLO goals instead of bidirectional_goal
+        YOLOGoalStop(goal_radius=2)  # Use YOLO goals instead of bidirectional_goal
+        
     ]
 
+     # YOLO-optimized rewards
     reward_functions = [
-        GoalEndReward(),
-        TimePenalty(),
-        CollisionPenalty(),
-        DistanceReward()
+        GoalEndReward(reward=100),               # Big reward for reaching YOLO goals
+        TimePenalty(reward=-0.01),              # Low time pressure for exploration
+        SmoothCollisionPenalty(reward=-15, car_penalty_multiplier=2.0),
+        SmoothDistanceReward(continuous=True, continuous_scale=0.8),
+        CarProximityPenalty(penalty_distance=2.5, max_penalty=-0.03, exploration_bonus=0.005)
     ]
 
     env = load_env(

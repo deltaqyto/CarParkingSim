@@ -261,7 +261,7 @@ class YOLOGoalDetector(GenericEnvironment):
         # Convert to world coordinates
         world_x, world_y = self._screen_to_world_coords(screen_center_x, screen_center_y)
         
-        print(f"Original parking spot detected at: ({world_x:.2f}, {world_y:.2f})")
+        #print(f"Original parking spot detected at: ({world_x:.2f}, {world_y:.2f})")
         
         # Calculate angle to face center of map
         angle_to_center = self._calculate_angle_to_center(world_x, world_y)
@@ -276,7 +276,7 @@ class YOLOGoalDetector(GenericEnvironment):
             else:  # Right side parking spots  
                 goal_x = world_x + 1.5  # Move away from center (right end of spot)
             goal_y = world_y
-            print(f"Horizontal spot: moved goal to ({goal_x:.2f}, {goal_y:.2f})")
+            #print(f"Horizontal spot: moved goal to ({goal_x:.2f}, {goal_y:.2f})")
         else:  # Vertical parking spots (top/bottom)
             # For spots on top, goal at top end (away from center)
             # For spots on bottom, goal at bottom end (away from center)

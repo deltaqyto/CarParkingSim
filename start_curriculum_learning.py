@@ -14,9 +14,15 @@ if __name__ == "__main__":
         mp.set_start_method('spawn', force=True)
 
         # Import the training schedule here, not at the top (avoids circular import
-        from Simulation.training_schedule import BasicTrainingSchedule
+        # from Simulation.training_schedule import BasicTrainingSchedule
 
-        do_curriculum_learning(BasicTrainingSchedule())  # Start training with the 'Basic Training Schedule'
+        # do_curriculum_learning(BasicTrainingSchedule())  # Start training with the 'Basic Training Schedule'
+
+        from Simulation.training_schedule import YOLOParkingSchedule
+
+        do_curriculum_learning(YOLOParkingSchedule())  # Start training with the 'Basic Training Schedule'
+
+
     except Exception as e:
         print(f"Fatal error: {e}")
     finally:
