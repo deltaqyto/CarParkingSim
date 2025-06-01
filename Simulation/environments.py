@@ -50,6 +50,7 @@ def get_yolo_env(render=False, goal_size=1, angle_tolerance=1, vision=True):
                                         SmoothDistanceReward, CarProximityPenalty)
     from modules.stop_conditions import StepLimit, CollisionStop, YOLOGoalStop
     from modules.observation_modules import ClassicalObservation
+    from modules.module_reward_display import RewardDisplayModule
     
     world_width = 60
     world_aspect = 3 / 4
@@ -75,7 +76,9 @@ def get_yolo_env(render=False, goal_size=1, angle_tolerance=1, vision=True):
         TimePenalty(reward=-0.01),
         SmoothCollisionPenalty(reward=-15, car_penalty_multiplier=2.0),
         SmoothDistanceReward(continuous=True, continuous_scale=0.8),
-        CarProximityPenalty(penalty_distance=2.5, max_penalty=-0.03, exploration_bonus=0.005)
+        CarProximityPenalty(penalty_distance=2.5, max_penalty=-0.03, exploration_bonus=0.005),
+        RewardDisplayModule()
+
     ]
 
     env = load_env(
