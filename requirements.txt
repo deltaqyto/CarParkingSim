@@ -5,3 +5,4 @@ pygame
 pyinstrument==5.0.1
 stable_baselines3==2.6.0
 torch==2.7.0
+ultralytics==8.3.146
