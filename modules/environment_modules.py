@@ -1,7 +1,7 @@
 from modules.generic_modules import GenericEnvironment
 from Objects.obstacles import RectObstacle
 from Objects.car import Car
-import os
+from random import choice, randint, sample
 
 
 class Borders(GenericEnvironment):
@@ -34,16 +34,12 @@ class Borders(GenericEnvironment):
         #print(f"DEBUG: Borders returning {len(self.collision_rects)} wall obstacles")#
         return {'obstacles': self.collision_rects}
 
+
 ## ============== Parking Lot Environment =================
 ## =============== Credit: Nikhil & Jack ==================
-from modules.generic_modules import GenericEnvironment
-from Objects.obstacles import RectObstacle
-from Objects.car import Car
-from random import choice, randint, sample
 
-# Change the configuration of the environment by changing the configuration parameter
-class ParkingLotModule(GenericEnvironment):  # < Recommend renaming this to something else, and making a fresh module for it, instead of building on the same module
-    def __init__(self, wall_width=2, configuration=1):  # < Configuration should be added to the digest below
+class ParkingLotModule(GenericEnvironment):
+    def __init__(self, wall_width=2, configuration=1):
         super().__init__()
         self.configuration = configuration
         self.wall_width = wall_width
@@ -89,7 +85,9 @@ class ParkingLotModule(GenericEnvironment):  # < Recommend renaming this to some
             self.static_cars = []
             for pos in car_positions:
                 color = choice(colors)
-                self.static_cars.append(Car(origin=pos, start_direction=0, color=color))  # << Car is an *extremely* expensive class to use for just rendering. Consider 'from Objects.car import render_car', and just using that instead:
+                self.static_cars.append(Car(origin=pos, start_direction=0, color=color))  # << Car is an *extremely* expensive class to use for just rendering.
+
+                # Consider 'from Objects.car import render_car', and just using that instead. -delta
                 #  for i, blocker in enumerate(self.collision_rects):
                 #    width, length = blocker.size
                 #    render_car(screen, transform, blocker.position, car_angle=180 - blocker.angle - 90, width=width, length=length, color=color)
@@ -113,7 +111,7 @@ class ParkingLotModule(GenericEnvironment):  # < Recommend renaming this to some
 
             self.obstacles = []
             for pos in obstacle_positions:
-                self.obstacles.append(RectObstacle(pos, [4.7, 2.5], angle=90))  # Wider obstacles
+                self.obstacles.append(RectObstacle(pos, [4.7, 2.5], angle=90))  # Wider obstacles. Also, this expects radians
 
             self.static_cars = []
             for pos in car_positions:
