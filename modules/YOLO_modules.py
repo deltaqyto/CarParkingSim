@@ -1,10 +1,9 @@
-from modules.generic_modules import GenericEnvironment
+from modules.generic_modules import GenericEnvironment, GenericStop
 from AI.YOLO.yolo_detect import YOLODetector
-import math
 import pygame
 import numpy as np
-import cv2
-from os import path
+import math
+from os.path import join, exists
 
 
 class YOLOGoalDetector(GenericEnvironment):
@@ -29,14 +28,14 @@ class YOLOGoalDetector(GenericEnvironment):
         if self.model_name is None:
             raise ValueError("model_name is required")
 
-        model_path = path.join(self.search_path, "YOLO", self.model_name, "weights", "best.pt")
+        model_path = join(self.search_path, "YOLO", self.model_name, "weights", "best.pt")
 
-        if not path.exists(model_path):
+        if not exists(model_path):
             raise ValueError(f"YOLO model not found at {model_path}")
 
         return model_path
 
-    def reset(self, mode, state=None):
+    def reset(self, mode, state):
         world_size = state['world_size']
         self.world_width = world_size[0]
         self.world_height = world_size[1]
@@ -70,7 +69,7 @@ class YOLOGoalDetector(GenericEnvironment):
 
             parking_spots_found = 0
             for detection in detections:
-                if self._is_parking_related(detection['class_name']):
+                if detection['class_name'] == "ParkingSpot":
                     parking_spots_found += 1
                     goal = self._create_parking_goal(detection, screen.get_size())
                     if goal:
@@ -83,18 +82,6 @@ class YOLOGoalDetector(GenericEnvironment):
             print(f"YOLO detection error: {e}")
             import traceback
             traceback.print_exc()
-
-    def _is_parking_related(self, class_name):
-        if class_name == 'ParkingSpot':
-            return True
-
-        parking_classes = [
-            'parkingspot', 'parking_spot', 'parking', 'parking_space',
-            'empty_space', 'slot'
-        ]
-
-        result = any(cls in class_name.lower() for cls in parking_classes)
-        return result
 
     def _create_parking_goal(self, detection, screen_size):
         screen_width, screen_height = screen_size
@@ -114,7 +101,6 @@ class YOLOGoalDetector(GenericEnvironment):
             'angle': angle_to_center,
             'size': [1.5, 1.5],
             'confidence': detection['confidence'],
-            'class_name': detection['class_name'],
             'bidirectional': True
         }
 
@@ -159,11 +145,6 @@ class YOLOGoalDetector(GenericEnvironment):
             'parking_goals': self.parking_goals,
             'detected_objects': self.detected_objects
         }
-
-
-from modules.generic_modules import GenericStop
-import pygame
-import numpy as np
 
 
 class YOLOGoalStop(GenericStop):
