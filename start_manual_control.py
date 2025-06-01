@@ -1,6 +1,6 @@
 import os
 
-from Simulation.environments import get_yolo_env
+from modules.custom_environments import get_yolo_env
 
 os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = "hide"
 import pygame
