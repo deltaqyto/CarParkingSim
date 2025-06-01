@@ -230,7 +230,7 @@ class YOLOGoalStop(GenericStop):
                 pygame.draw.circle(screen, (255, 0, 0), goal_screen_pos, radius_screen, 1)
 
     def get_digest(self):
-        return f"FixedYOLOGoalStop(goal_radius={self.goal_radius}, goals_count={len(self.goals_from_yolo)})"
+        return f"YOLOGoalStop(goal_radius={self.goal_radius})"
 
     def get_unified_state(self):
         """Always provide goals - use placeholder if none detected yet"""
