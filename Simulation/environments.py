@@ -45,10 +45,10 @@ def get_basic_env(render=False, goal_size=1, angle_tolerance=1, vision=False):
 
 
 def get_yolo_env(render=False, goal_size=1, angle_tolerance=1, vision=True):
-    from modules.environment_modules import Borders, ParkingLotModule, YOLOGoalDetector
-    from modules.reward_functions import (GoalEndReward, TimePenalty, SmoothCollisionPenalty, 
-                                        SmoothDistanceReward, CarProximityPenalty)
-    from modules.stop_conditions import StepLimit, CollisionStop, YOLOGoalStop
+    from modules.environment_modules import Borders, ParkingLotModule
+    from modules.reward_functions import GoalEndReward, TimePenalty, SmoothCollisionPenalty, SmoothDistanceReward, CarProximityPenalty
+    from modules.stop_conditions import StepLimit, CollisionStop
+    from modules.YOLO_modules import YOLOGoalStop, YOLOGoalDetector
     from modules.observation_modules import ClassicalObservation
     from modules.module_reward_display import RewardDisplayModule
     
