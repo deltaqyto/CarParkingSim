@@ -218,22 +218,22 @@ class SmoothDistanceReward(GenericReward):
         return f'SmoothDistanceReward(factor={self.reward_factor}, continuous={self.continuous}, continuous_scale={self.continuous_scale})'
 
     def get_reward(self, state):
-        # Get YOLO goal distance
+        # Get goal distance
         closest_goal_data = state.get('closest_goal', {})
         goal_distance = closest_goal_data.get('distance', float('inf'))
 
-        # If no YOLO goals detected yet, return small exploration penalty
+        # If no goals detected yet, return small exploration penalty
         if goal_distance == float('inf'):
             return 'SmoothDistanceReward', -0.001 if self.continuous else 0
 
         if self.continuous:
-            # Continuous feedback - reward for getting closer to YOLO goals
+            # Continuous feedback - reward for getting closer to goals
             reward = 0
             if self.last_distance is not None and self.last_distance != float('inf'):
                 distance_improvement = self.last_distance - goal_distance
                 reward = distance_improvement * self.continuous_scale
 
-                # Extra bonus for being very close to YOLO goals
+                # Extra bonus for being very close to goals
                 if goal_distance < 3.0:
                     proximity_bonus = (3.0 - goal_distance) / 3.0 * 0.02
                     reward += proximity_bonus
@@ -241,7 +241,7 @@ class SmoothDistanceReward(GenericReward):
             self.last_distance = goal_distance
             return 'SmoothDistanceReward', reward
         else:
-            # End-of-episode penalty based on distance to YOLO goal
+            # End-of-episode penalty based on distance to goal
             return 'SmoothDistanceReward', self.reward_factor * goal_distance if state['stop_reasons'] else 0
 
 
@@ -293,7 +293,7 @@ class CarProximityPenalty(GenericReward):
         # discovery_bonus = max(0, current_yolo_goals - self.goals_found_last_step) * 5.0
         # self.goals_found_last_step = current_yolo_goals
 
-        # Exploration reward when no YOLO goals found
+        # Exploration reward when no goals found
         exploration_reward = 0
         if current_yolo_goals == 0:
             car_speed = abs(state['car']['speed'])
@@ -305,13 +305,14 @@ class CarProximityPenalty(GenericReward):
 
 
 class SmoothDrivingReward(GenericReward):
-    def __init__(self, steering_penalty_scale=-0.01, speed_reward_scale=0.005):
+    def __init__(self, steering_penalty_scale=-0.01, speed_reward_scale=0.005, optimal_speed=2.0):
         super().__init__()
         self.steering_penalty_scale = steering_penalty_scale
         self.speed_reward_scale = speed_reward_scale
+        self.optimal_speed = optimal_speed
 
     def get_digest(self):
-        return f'SmoothDrivingReward(steering_penalty={self.steering_penalty_scale})'
+        return f'SmoothDrivingReward(steering_penalty_scale={self.steering_penalty_scale}, speed_reward_scale={self.speed_reward_scale}, optimal_speed={self.optimal_speed})'
 
     def get_reward(self, state):
         car_state = state['car']
@@ -321,7 +322,6 @@ class SmoothDrivingReward(GenericReward):
 
         # Small reward for appropriate speed (not too slow, not too fast)
         speed = abs(car_state['speed'])
-        optimal_speed = 2.0  # Adjust based on your speed scale
-        speed_reward = max(0, optimal_speed - abs(speed - optimal_speed)) * self.speed_reward_scale
+        speed_reward = max(0, self.optimal_speed - abs(speed - self.optimal_speed)) * self.speed_reward_scale
 
         return 'Smooth Driving', steering_penalty + speed_reward
