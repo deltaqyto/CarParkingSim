@@ -11,13 +11,14 @@ class YOLOGoalDetector(GenericEnvironment):
         super().__init__()
         self.model_name = model_name
         self.search_path = search_path
+        self.confidence_threshold = confidence_threshold
         self.world_width = None
         self.world_height = None
         self.parking_goals = []
         self.detected_objects = []
 
         yolo_model_path = self._get_model_path()
-        self.yolo_detector = YOLODetector(yolo_model_path, confidence_threshold)
+        self.yolo_detector = YOLODetector(yolo_model_path, self.confidence_threshold)
 
         self.detection_frame_counter = 0
         self.detection_interval = 30
@@ -128,7 +129,7 @@ class YOLOGoalDetector(GenericEnvironment):
         return angle_deg
 
     def get_digest(self):
-        return f"YOLOGoalDetector(model_name={self.model_name}, goals_count={len(self.parking_goals)})"
+        return f"YOLOGoalDetector(model_name={self.model_name}, confidence_threshold={self.confidence_threshold})"
 
     def get_unified_state(self):
         formatted_goals = []
