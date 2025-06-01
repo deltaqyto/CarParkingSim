@@ -137,26 +137,26 @@ class ParkingLotModule(GenericEnvironment):  # < Recommend renaming this to some
     def get_unified_state(self):
         # Start with walls (always collidable)
         all_obstacles = self.collision_rects.copy()
-            
+
         # ADD: Only static cars as collision objects (not the obstacles)
         i=0
         for car in self.static_cars:
             car_collision_box = RectObstacle(
-                position=car.position,      
-                size=[car.length, car.width],  
-                angle=car.get_angle(),      
-                color=(255, 0, 0)         
+                position=car.position,
+                size=[car.length, car.width],
+                angle=car.get_angle(),
+                color=(255, 0, 0)
             )
             all_obstacles.append(car_collision_box)
             #print(f"DEBUG: Car {i} at {car.position} -> collision box at {car_collision_box.position}")
             i = i + 1
-        
+
         #print(f"DEBUG: ParkingLotModule returning {len(all_obstacles)} obstacles")
 
             # DON'T add self.obstacles - these are parking spaces, not collision objects
-            
+
         return {
             'obstacles': all_obstacles,      # Walls + Cars (collidable)
-            'static_cars': self.static_cars, 
+            'static_cars': self.static_cars,
             'static_obstacles': self.obstacles  # Parking spaces (visual only)
         }

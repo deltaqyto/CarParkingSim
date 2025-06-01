@@ -1,6 +1,5 @@
 import pygame
 import numpy as np
-from math import radians, sin, cos
 
 
 class RectObstacle:
@@ -126,7 +125,7 @@ class RectObstacle:
         pygame.draw.rect(obstacle_surf, self.color, rect)
 
         # Rotate surface
-        rotated = pygame.transform.rotate(obstacle_surf, self.angle)
+        rotated = pygame.transform.rotate(obstacle_surf, -self.angle)
 
         # Position rotated surface
         rot_rect = rotated.get_rect(center=(screen_pos[0], screen_pos[1]))

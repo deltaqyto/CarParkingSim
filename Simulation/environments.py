@@ -2,7 +2,7 @@ from Simulation.simulation_environment import SimulationEnvironment
 
 # Yes, these might show as import errors. It resolves at runtime
 from modules.environment_modules import Borders, ParkingLotModule
-from modules.reward_functions import GoalEndReward, TimePenalty, CollisionPenalty, DistanceReward, SmoothCollisionPenalty, SmoothDistanceReward, CarProximityPenalty, SmoothDrivingReward
+from modules.reward_functions import GoalEndReward, TimePenalty, CollisionPenalty, DistanceReward
 from modules.stop_conditions import bidirectional_goal, StepLimit, CollisionStop
 from modules.observation_modules import ClassicalObservation
 
