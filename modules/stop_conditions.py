@@ -65,20 +65,60 @@ class GenericGoal(GenericStop):
 
         return False, 'Nothing'
 
-    def render(self, screen, transform_matrix):
-        # Render the YOLO goals as circles
-        for goal_x, goal_y, goal_angle in self.goals_from_yolo:
-            # Transform goal position to screen coordinates
-            goal_screen = transform_matrix @ np.array([goal_x, goal_y, 1])
-            goal_screen_pos = (int(goal_screen[0]), int(goal_screen[1]))
-            
-            # Calculate radius in screen coordinates - make even smaller
-            radius_world = self.goal_radius * 0.5  # Make visual radius even smaller
-            radius_screen = max(3, int(radius_world * transform_matrix[0, 0]))  # Minimum 3 pixels
-            
-            # Draw goal circle (green with red border) - smaller
-            pygame.draw.circle(screen, (0, 255, 0), goal_screen_pos, radius_screen, 2)
-            pygame.draw.circle(screen, (255, 0, 0), goal_screen_pos, radius_screen, 1)
+    def render(self, screen, transform):
+        goal_position_screen = transform @ np.append(self.goal_position, 1)
+
+        origin_point = [0, 0]
+        radius_point = [self.goal_size, 0]  # A point goal_size away from origin along x-axis
+
+        # Transform points
+        origin_screen = transform @ np.append(origin_point, 1)
+        radius_screen = transform @ np.append(radius_point, 1)
+
+        # Calculate scaled radius
+        dx = radius_screen[0] - origin_screen[0]
+        dy = radius_screen[1] - origin_screen[1]
+        scaled_radius = int(np.sqrt(dx ** 2 + dy ** 2))
+
+        # Draw goal circle
+        pygame.draw.circle(
+            screen,
+            (0, 255, 0),  # Green color
+            (int(goal_position_screen[0]), int(goal_position_screen[1])),
+            scaled_radius,  # Use the scaled radius instead of fixed value
+            0  # Filled circle
+        )
+
+        # Draw goal direction indicator
+        if self.angle_tolerance < pi:
+            # Calculate end point for direction line
+            direction_length = 2  # Length of the direction indicator
+            goal_direction = np.array([cos(self.goal_angle), sin(self.goal_angle)])
+            direction_end = self.goal_position + goal_direction * direction_length
+            direction_end_screen = transform @ np.append(direction_end, 1)
+
+            # Draw line indicating orientation
+            pygame.draw.line(
+                screen,
+                (255, 255, 0),  # Yellow color
+                (int(goal_position_screen[0]), int(goal_position_screen[1])),
+                (int(direction_end_screen[0]), int(direction_end_screen[1])),
+                3  # Line width
+            )
+
+            # If double-sided, draw opposing direction line
+            if self.bidirectional:
+                goal_direction = np.array([cos(self.goal_angle), sin(self.goal_angle)])
+                opposite_end = self.goal_position - goal_direction * direction_length
+                opposite_end_screen = transform @ np.append(opposite_end, 1)
+
+                pygame.draw.line(
+                    screen,
+                    (255, 255, 0),  # Yellow color
+                    (int(goal_position_screen[0]), int(goal_position_screen[1])),
+                    (int(opposite_end_screen[0]), int(opposite_end_screen[1])),
+                    3  # Line width
+                )
 
     def get_unified_state(self):
         return {'goals': [[*self.goal_position, self.goal_angle]],
