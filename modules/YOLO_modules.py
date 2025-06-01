@@ -84,13 +84,12 @@ class YOLOGoalDetector(GenericEnvironment):
             screen_center_x, screen_center_y, screen_width, screen_height
         )
 
-        angle_to_center = self._calculate_angle_to_center(world_x, world_y)
         goal_x = world_x
         goal_y = world_y
 
         goal = {
             'position': [goal_x, goal_y],
-            'angle': angle_to_center,
+            'angle': 0,
             'size': [1.5, 1.5],
             'confidence': detection['confidence'],
             'bidirectional': True
@@ -106,18 +105,6 @@ class YOLOGoalDetector(GenericEnvironment):
         world_y = norm_y * (self.world_height / 2)
 
         return world_x, world_y
-
-    def _calculate_angle_to_center(self, x, y):
-        if x == 0 and y == 0:
-            return 0
-
-        angle_rad = math.atan2(-y, -x)
-        angle_deg = math.degrees(angle_rad)
-
-        if angle_deg < 0:
-            angle_deg += 360
-
-        return angle_deg
 
     def get_digest(self):
         return f"YOLOGoalDetector(model_name={self.model_name}, confidence_threshold={self.confidence_threshold})"
