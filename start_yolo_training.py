@@ -17,7 +17,7 @@ if __name__ == "__main__":
     prepare_and_train_yolo(
         source_path=source_path,
         model_size='yolo11s.pt',
-        epochs=60,
+        epochs=30,
         imgsz=640,
         working_dir=working_dir,
         model_dir=model_dir
