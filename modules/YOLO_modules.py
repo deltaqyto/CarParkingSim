@@ -77,7 +77,6 @@ class YOLOGoalStop(GenericStop):
 
     def _run_yolo_detection_from_vision(self, state):
         """Run YOLO detection using raw vision data from state"""
-        print(state['vision'])
         self.detection_frame_counter += 1
         interval = 5 if not self.goals_detected else self.detection_interval
 
