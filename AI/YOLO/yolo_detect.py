@@ -1,15 +1,8 @@
-import os
-import numpy as np
-import cv2
-import time
-import pygame
-
-# Add YOLO imports
 from ultralytics import YOLO
 
 
 class YOLODetector:
-    """Unified YOLO detector that works with both pygame screens and numpy arrays"""
+    """Unified YOLO detector that works with and numpy arrays"""
     
     def __init__(self, model_path, confidence_threshold=0.5):
         """Initialize YOLO detector"""
@@ -27,23 +20,7 @@ class YOLODetector:
         except Exception as e:
             print(f"Failed to load YOLO model: {e}")
             print("YOLO detection will be disabled")
-    
-    def detect_from_pygame_screen(self, screen):
-        """Run YOLO detection on pygame screen surface"""
-        if not self.detection_active or self.model is None or screen is None:
-            return []
-        
-        try:
-            # Capture pygame screen and convert to array
-            screen_array = self._capture_pygame_screen(screen)
-            
-            # Use the unified detection method
-            return self._run_detection(screen_array)
-            
-        except Exception as e:
-            print(f"Detection error: {e}")
-            return []
-    
+
     def detect_from_array(self, image_array):
         """Run YOLO detection on a numpy array (BGR format)"""
         if not self.detection_active or self.model is None:
@@ -98,28 +75,7 @@ class YOLODetector:
         except Exception as e:
             print(f"YOLO inference error: {e}")
             return []
-    
-    def _capture_pygame_screen(self, screen):
-        """
-        Capture the current Pygame screen as a numpy array
-        
-        Args:
-            screen (pygame.Surface): Pygame screen surface
-        
-        Returns:
-            numpy.ndarray: Captured screen as a numpy array in BGR format
-        """
-        # Convert Pygame surface to numpy array
-        screen_array = pygame.surfarray.array3d(screen)
-        
-        # Transpose to get standard image format (Height, Width, Channels)
-        screen_array = screen_array.transpose([1, 0, 2])
-        
-        # Convert from RGB to BGR (OpenCV default)
-        screen_array = cv2.cvtColor(screen_array, cv2.COLOR_RGB2BGR)
-        
-        return screen_array
-    
+
     def toggle_detection(self):
         """Toggle detection on/off"""
         if self.model is not None:
