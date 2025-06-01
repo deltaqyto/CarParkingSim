@@ -248,7 +248,7 @@ class VisionTrainer:
         self.rl_model = self._load_rl_model()
 
         # Set max_batches with default
-        self.max_batches = vision_params.get('max_batches', 2000)
+        self.max_batches = vision_params.get('max_batches', 500)
         self.training_image_size = vision_params.get('final_image_size', 100)
         self.output_rays = vision_params.get('output_rays', 24)
 
