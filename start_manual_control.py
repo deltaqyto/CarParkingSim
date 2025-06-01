@@ -21,7 +21,7 @@ def select_environment():
         if choice == "" or choice == "1":
             out = get_basic_env(render=True, goal_size=2, angle_tolerance=1.57)()
         if choice == "2":
-            out = get_yolo_env(render, 2, 1.57)()
+            out = get_yolo_env(render=True)()
         else:
             print("Invalid choice. Please enter a number.")
     print("Loading Environment...")

@@ -68,10 +68,10 @@ class SimulationEnvironment:
         self.scale = min(self.screen_width / self.world_size[0],
                          self.screen_height / self.world_size[1])
         self.transform = np.array([
-            [self.scale, 0, self.screen_width / 2],  # x scale, y shear, x translate
-            [0, self.scale, self.screen_height / 2],  # x shear, y scale, y translate
-            [0, 0, 1]  # perspective
-        ])
+                [self.scale, 0, self.screen_width / 2],  # x scale, y shear, x translate
+                [0, self.scale, self.screen_height / 2],  # x shear, y scale, y translate
+                [0, 0, 1]  # perspective
+            ])
 
         if self.generate_vision:
             pygame.init()
