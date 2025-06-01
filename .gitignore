@@ -7,3 +7,8 @@ __pycache__/
 models/
 profile_results/
 /temp_data/
+
+
+# Ignore yolo files
+yolo11n.pt
+yolo11s.pt
