@@ -145,7 +145,7 @@ def train_model(data_yaml_path, model_size='yolo11s.pt', epochs=60, imgsz=640, m
 
     if os.path.exists(full_path):
         for letter in string.ascii_lowercase:
-            model_name = f"{base_name}_{letter}"
+            model_name = f"{base_name}{letter}"
             full_path = os.path.join(model_dir, model_name)
             if not os.path.exists(full_path):
                 break
