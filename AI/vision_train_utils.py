@@ -244,6 +244,9 @@ class VisionTrainer:
 
         self.rl_model = self._load_rl_model()
 
+        # Set max_batches with default
+        self.max_batches = vision_params.get('max_batches', 2000)
+
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.vision_model = RaycastResNet(input_size=150, output_dim=12).to(self.device)
         self.optimizer = torch.optim.Adam(self.vision_model.parameters(), lr=vision_params['learning_rate'])
@@ -268,6 +271,7 @@ class VisionTrainer:
         print(f"Device: {self.device}")
         print(f"Buffer size: {vision_params['vision_buffer_size']}")
         print(f"Collection threads: {vision_params['vision_collection_threads']}")
+        print(f"Max batches: {self.max_batches}")
 
     def _load_rl_model(self):
         rl_model_name = self.params['rl_model_name']
@@ -435,7 +439,7 @@ class VisionTrainer:
 
             print("Starting vision training...")
 
-            while self.running:
+            while self.running and self.training_stats['batches'] < self.max_batches:
                 loss = self.train_batch()
 
                 if loss is None:
@@ -452,15 +456,18 @@ class VisionTrainer:
                         avg_obstacle_ratio = np.mean([info['obstacle_ratio'] for info in recent_balance])
                         balance_rate = np.mean([info['balanced'] for info in recent_balance])
 
-                        print(f"Batch {self.training_stats['batches']}: Loss {loss:.6f}, Recent Avg {recent_loss:.6f}, Buffer {buffer_size}")
+                        print(f"Batch {self.training_stats['batches']}/{self.max_batches}: Loss {loss:.6f}, Recent Avg {recent_loss:.6f}, Buffer {buffer_size}")
                         print(f"  Obstacle ratio: {avg_obstacle_ratio:.3f}, Balance rate: {balance_rate:.3f}")
                     else:
-                        print(f"Batch {self.training_stats['batches']}: Loss {loss:.6f}, Recent Avg {recent_loss:.6f}, Buffer {buffer_size}")
+                        print(f"Batch {self.training_stats['batches']}/{self.max_batches}: Loss {loss:.6f}, Recent Avg {recent_loss:.6f}, Buffer {buffer_size}")
 
                     last_print = time.time()
 
                 if self.training_stats['batches'] % save_freq == 0:
                     self.save_checkpoint()
+
+            if self.training_stats['batches'] >= self.max_batches:
+                print(f"Training completed: reached max batches ({self.max_batches})")
 
         except KeyboardInterrupt:
             print("Training interrupted by user")
