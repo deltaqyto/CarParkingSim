@@ -33,9 +33,11 @@ class ClassicalObservation(GenericObservation):
 
 
 class VisionRaycastObservation(GenericObservation):
-    def __init__(self, model_name, search_path="models", show_image=False, display_interval=0.1):
+    def __init__(self, model_name, search_path="models", show_image=False, display_interval=0.1, ray_count=24, expected_image_size=100):
         self.model_name = model_name
         self.search_path = search_path
+        self.ray_count = ray_count
+        self.expected_image_size = expected_image_size
         self.show_image = show_image
         self.display_interval = display_interval
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -127,8 +129,8 @@ class VisionRaycastObservation(GenericObservation):
         # Use the same crop and rotate function as training
         from AI.vision_train_utils import crop_and_rotate_image
 
-        # This returns 150x150 uint8 image, car-centered and rotated
-        image = crop_and_rotate_image(image_array, car_pos, car_angle, world_size)
+        # This returns a square uint8 image, car-centered and rotated
+        image = crop_and_rotate_image(image_array, car_pos, car_angle, world_size, desired_image_size=self.expected_image_size)
 
         # Convert to float32 and normalize
         image = image.astype(np.float32) / 255.0
@@ -187,10 +189,10 @@ class VisionRaycastObservation(GenericObservation):
             print(f"Display error: {e}")
 
     def get_observation(self, state, observation):
-        if len(observation) != 19:
-            raise ValueError(f"Expected 19-element observation, got {len(observation)}")
+        if len(observation) != 7 + self.ray_count:
+            raise ValueError(f"Expected {self.ray_count + 7}-element observation, got {len(observation)}")
 
-        # Get vision prediction (12 elements)
+        # Get vision prediction (24 elements)
         if 'vision' not in state:
             raise ValueError("No 'vision' key in state - environment must provide vision data")
 
@@ -208,20 +210,20 @@ class VisionRaycastObservation(GenericObservation):
             prediction = self.vision_model(image_tensor)
             vision_prediction = prediction.cpu().numpy().flatten()
 
-        if len(vision_prediction) != 12:
-            raise ValueError(f"Expected 12-element vision prediction, got {len(vision_prediction)}")
+        if len(vision_prediction) != self.ray_count:
+            raise ValueError(f"Expected ray_count-element vision prediction, got {len(vision_prediction)}")
 
         # Update display if enabled
         if self.show_image and self.fig is not None:
             self._update_display(image, vision_prediction)
 
         state['raycasts'] = vision_prediction
-        observation[4:16] = vision_prediction
+        observation[4:4 + self.ray_count] = vision_prediction
 
         return observation
 
     def get_digest(self):
-        return f'VisionObservation(model_name={self.model_name}, show_image={self.show_image})'
+        return f'VisionObservation(model_name={self.model_name}, show_image={self.show_image}, ray_count={self.ray_count}, expected_image_size={self.expected_image_size})'
 
     def close(self):
         """Clean up display resources."""

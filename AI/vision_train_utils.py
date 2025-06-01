@@ -44,10 +44,10 @@ class ThreadSafeBuffer:
         return self.size() >= min_size
 
 
-def crop_and_rotate_image(image_array, car_pos, car_angle, world_size):
+def crop_and_rotate_image(image_array, car_pos, car_angle, world_size, desired_image_size):
     """Crop around car and rotate so car faces same direction."""
     # Configurable crop sizes
-    FINAL_CROP_SIZE = 150
+    FINAL_CROP_SIZE = desired_image_size
     LARGE_CROP_SIZE = round(FINAL_CROP_SIZE * 1.5)
 
     if len(image_array.shape) != 3:
@@ -115,22 +115,23 @@ def crop_and_rotate_image(image_array, car_pos, car_angle, world_size):
     return final_cropped.astype(np.uint8)
 
 
-def extract_raycasts(observation):
-    """Extract raycast values from observation (indices 4:16)."""
+def extract_raycasts(observation, output_rays):
+    """Extract raycast values from observation (indices 4:output_rays + 4)"""
     obs = np.array(observation)
-    if len(obs) < 16:
-        raise ValueError(f"Expected at least 16-element observation, got {len(obs)} elements")
+    if len(obs) < output_rays + 4:
+        raise ValueError(f"Expected at minimum {output_rays + 4}-element observation, got {len(obs)} elements")
 
-    # Extract raycasts (indices 4:16 = 12 values)
-    raycasts = obs[4:16]
+    # Extract raycasts (start at index 4, take n rays)
+    raycasts = obs[4:output_rays + 4]
     return raycasts.astype(np.float32)
 
 
 class DisplayThread(threading.Thread):
-    def __init__(self, buffer, display_interval):
+    def __init__(self, buffer, display_interval, training_image_size):
         super().__init__(daemon=True)
         self.buffer = buffer
         self.display_interval = display_interval
+        self.training_image_size = training_image_size
         self.running = True
         self.fig = None
         self.ax = None
@@ -140,8 +141,8 @@ class DisplayThread(threading.Thread):
             # Set backend for display
             matplotlib.use('TkAgg')
             plt.ion()
-            self.fig, self.ax = plt.subplots(1, 1, figsize=(6, 6))  # Square for 100x100 images
-            self.fig.suptitle('Random Training Image (Car-Centric 150x150)')
+            self.fig, self.ax = plt.subplots(1, 1, figsize=(6, 6))  # Square images
+            self.fig.suptitle(f'Random Training Image (Car-Centric {self.training_image_size}x{self.training_image_size})')
             plt.show(block=False)
 
             while self.running:
@@ -170,13 +171,15 @@ class DisplayThread(threading.Thread):
 
 
 class DataCollectionThread(threading.Thread):
-    def __init__(self, environment_factory, rl_model, buffer, thread_id, seed_offset=0):
+    def __init__(self, environment_factory, rl_model, buffer, thread_id, training_image_size, output_rays, seed_offset=0):
         super().__init__(daemon=True)
         self.environment_factory = environment_factory
         self.rl_model = rl_model
         self.buffer = buffer
         self.thread_id = thread_id
         self.seed_offset = seed_offset
+        self.training_image_size = training_image_size
+        self.output_rays = output_rays
         self.running = True
         self.stats = {'episodes': 0, 'steps': 0, 'errors': 0}
 
@@ -196,7 +199,7 @@ class DataCollectionThread(threading.Thread):
                         if state is None:
                             raise ValueError("Environment returned None state")
 
-                        if 'vision' not in state:
+                        if 'vision' not in state or state['vision'] is None:
                             raise ValueError("No 'vision' key in environment state")
 
                         if 'world_size' not in state:
@@ -209,8 +212,8 @@ class DataCollectionThread(threading.Thread):
                         world_size = state['world_size']
 
                         # Process image and observation
-                        image = crop_and_rotate_image(state['vision'], car_pos, car_angle, world_size)
-                        raycasts = extract_raycasts(observation)
+                        image = crop_and_rotate_image(state['vision'], car_pos, car_angle, world_size, self.training_image_size)
+                        raycasts = extract_raycasts(observation, output_rays=self.output_rays)
 
                         self.buffer.add(image, raycasts)
                         self.stats['steps'] += 1
@@ -246,9 +249,11 @@ class VisionTrainer:
 
         # Set max_batches with default
         self.max_batches = vision_params.get('max_batches', 2000)
+        self.training_image_size = vision_params.get('final_image_size', 100)
+        self.output_rays = vision_params.get('output_rays', 24)
 
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        self.vision_model = RaycastResNet(input_size=150, output_dim=12).to(self.device)
+        self.vision_model = RaycastResNet(input_size=self.training_image_size, output_dim=self.output_rays).to(self.device)
         self.optimizer = torch.optim.Adam(self.vision_model.parameters(), lr=vision_params['learning_rate'])
         self.criterion = WeightedRaycastLoss(
             weight_far=0.3,  # Lower weight for raycasts = 1.0 (no obstacles)
@@ -296,6 +301,8 @@ class VisionTrainer:
                 rl_model=self.rl_model,
                 buffer=self.buffer,
                 thread_id=i,
+                training_image_size=self.training_image_size,
+                output_rays=self.output_rays,
                 seed_offset=i * 1000
             )
             thread.start()
@@ -380,55 +387,12 @@ class VisionTrainer:
 
         print(f"Saved checkpoint to {checkpoint_path}")
 
-    def update_loss_plot(self):
-        """Update and save loss plot without displaying."""
-        if len(self.plot_data['batches']) < 10:  # Need some data points
-            return
-
-        # Force Agg backend for saving without display
-        original_backend = matplotlib.get_backend()
-        matplotlib.use('Agg', force=True)
-
-        try:
-            fig, ax = plt.subplots(figsize=(12, 8))
-
-            # Plot both lines
-            ax.plot(self.plot_data['batches'], self.plot_data['recent_avgs'],
-                    label='Recent Avg (100 batches)', color='blue', linewidth=2)
-            ax.plot(self.plot_data['batches'], self.plot_data['losses'],
-                    label='Individual Loss', color='red', alpha=0.6, linewidth=1)
-
-            # Add reference lines
-            ax.axhline(y=0.01, color='green', linestyle='--', alpha=0.7, label='Very Good (0.01)')
-            ax.axhline(y=0.05, color='orange', linestyle='--', alpha=0.7, label='Good (0.05)')
-            ax.axhline(y=0.1, color='red', linestyle='--', alpha=0.7, label='Decent (0.1)')
-
-            ax.set_xlabel('Batch Number')
-            ax.set_ylabel('Loss (MSE)')
-            ax.set_title(f'Vision Training Loss Progress - {self.train_id}')
-            ax.legend()
-            ax.grid(True, alpha=0.3)
-
-            # Set reasonable y-limits
-            if self.plot_data['recent_avgs'] and self.plot_data['losses']:
-                max_loss = max(max(self.plot_data['recent_avgs']), max(self.plot_data['losses']))
-                ax.set_ylim(0, min(max_loss * 1.1, 0.5))
-
-            # Save plot
-            plot_path = os.path.join(self.model_dir, f"{self.train_id}_loss_plot.png")
-            plt.savefig(plot_path, dpi=150, bbox_inches='tight')
-            plt.close(fig)
-
-        finally:
-            # Restore original backend
-            matplotlib.use(original_backend, force=True)
-
     def train(self):
         try:
             self.start_collection_threads()
 
             if self.params.get('show_random', 0) > 0:
-                self.display_thread = DisplayThread(self.buffer, self.params['show_random'])
+                self.display_thread = DisplayThread(self.buffer, self.params['show_random'], self.training_image_size)
                 self.display_thread.start()
                 print(f"Started display thread (interval: {self.params['show_random']}s)")
 
@@ -498,9 +462,6 @@ class VisionTrainer:
             'training_stats': self.training_stats
         }, final_path)
         print(f"Final model saved to {final_path}")
-
-        # Save final loss plot
-        self.update_loss_plot()
 
         for i, thread in enumerate(self.collection_threads):
             stats = thread.stats
