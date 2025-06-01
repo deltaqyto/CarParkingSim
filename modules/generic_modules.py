@@ -11,6 +11,9 @@ class GenericModule:
     def get_unified_state(self):
         return {}
 
+    def render(self, screen, transform_matrix):
+        pass
+
 
 class GenericReward(GenericModule):
     def __init__(self):
@@ -23,9 +26,6 @@ class GenericEnvironment(GenericModule):
     def __init__(self):
         super().__init__()
 
-    def render(self, screen, transform_matrix):
-        pass
-
 
 class GenericStop(GenericModule):
     def __init__(self):
@@ -33,9 +33,6 @@ class GenericStop(GenericModule):
 
     def check_stop(self, state):
         return True, 'Called On Generic Module'
-
-    def render(self, screen, transform):
-        pass
 
 
 class GenericObservation(GenericModule):

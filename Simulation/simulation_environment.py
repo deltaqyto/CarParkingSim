@@ -278,12 +278,13 @@ class SimulationEnvironment:
             self.complete_simulation(reason=reasons)
 
         rewards = 0
-        reward_types = {}
+        self.state['reward_types'] = {}
         for module in self.reward_functions:
             name, reward = module.get_reward(self.state)
             rewards += reward
-            reward_types[name] = reward
-        self.state['reward_types'] = reward_types
+            if name is None:
+                continue
+            self.state['reward_types'][name] = reward
 
         # Is stopped?, observation, state
         return not self.running, self.observation, rewards, self.state
@@ -348,6 +349,9 @@ class SimulationEnvironment:
         self.collision_system.draw_debug(self.screen, self.transform)
 
         self.car.draw(self.screen, self.transform)
+
+        for module in self.reward_functions:
+            module.render(self.screen, self.transform)
 
         # Update display
         pygame.display.flip()
