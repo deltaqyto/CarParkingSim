@@ -1,29 +1,35 @@
-from modules.generic_modules import GenericEnvironment, GenericStop
+from modules.generic_modules import GenericStop
 from AI.YOLO.yolo_detect import YOLODetector
 import pygame
 import numpy as np
+import cv2
 import math
 from os.path import join, exists
 
 
-class YOLOGoalDetector(GenericEnvironment):
-    def __init__(self, model_name, search_path="models", confidence_threshold=0.5):
+class YOLOGoalStop(GenericStop):
+    """YOLO Goal Stop with integrated detection using vision state"""
+
+    def __init__(self, model_name, search_path="models", confidence_threshold=0.5, goal_radius=1.5):
         super().__init__()
         self.model_name = model_name
         self.search_path = search_path
         self.confidence_threshold = confidence_threshold
-        self.world_width = None
-        self.world_height = None
-        self.parking_goals = []
-        self.detected_objects = []
+        self.goal_radius = goal_radius
 
+        # YOLO detector setup
         yolo_model_path = self._get_model_path()
         self.yolo_detector = YOLODetector(yolo_model_path, self.confidence_threshold)
 
+        # Detection state
+        self.parking_goals = []
+        self.detected_objects = []
         self.detection_frame_counter = 0
         self.detection_interval = 30
         self.goals_detected = False
         self.total_detections_run = 0
+        self.world_width = None
+        self.world_height = None
 
     def _get_model_path(self):
         if self.model_name is None:
@@ -36,10 +42,11 @@ class YOLOGoalDetector(GenericEnvironment):
 
         return model_path
 
-    def reset(self, mode, state):
-        world_size = state['world_size']
-        self.world_width = world_size[0]
-        self.world_height = world_size[1]
+    def reset(self, mode, state=None):
+        """Reset detection state"""
+        if state and 'world_size' in state:
+            self.world_width = state['world_size'][0]
+            self.world_height = state['world_size'][1]
 
         self.parking_goals = []
         self.detected_objects = []
@@ -47,48 +54,82 @@ class YOLOGoalDetector(GenericEnvironment):
         self.goals_detected = False
         self.total_detections_run = 0
 
-    def render(self, screen, transform_matrix):
-        if not self.yolo_detector.is_active():
-            return
+    def check_stop(self, state):
+        """Check if car has reached any goal and run YOLO detection"""
+        # Run YOLO detection using vision state
+        self._run_yolo_detection_from_vision(state)
 
+        # Check if car reached any detected goal
+        if not self.parking_goals:
+            return False, ""
+
+        car_position = np.array(state['car']['position'])
+
+        # Check distance to each detected goal
+        for goal in self.parking_goals:
+            goal_position = np.array(goal['position'])
+            distance = np.linalg.norm(car_position - goal_position)
+
+            if distance <= self.goal_radius:
+                return True, f"Goal Hit (confidence: {goal['confidence']:.2f})"
+
+        return False, ""
+
+    def _run_yolo_detection_from_vision(self, state):
+        """Run YOLO detection using raw vision data from state"""
+        print(state['vision'])
         self.detection_frame_counter += 1
         interval = 5 if not self.goals_detected else self.detection_interval
 
         if self.detection_frame_counter >= interval:
             self.detection_frame_counter = 0
             self.total_detections_run += 1
-            self._run_yolo_detection_from_screen(screen)
 
-    def _run_yolo_detection_from_screen(self, screen):
-        detections = self.yolo_detector.detect_from_pygame_screen(screen)
-        self.detected_objects = detections
-        self.parking_goals = []
+            # Get raw vision image (from pygame.surfarray.array3d - shape is (width, height, channels))
+            vision_image = state['vision']
 
-        parking_spots_found = 0
-        for detection in detections:
-            if detection['class_name'] == "ParkingSpot":
-                parking_spots_found += 1
-                goal = self._create_parking_goal(detection, screen.get_size())
-                if goal:
-                    self.parking_goals.append(goal)
+            # Transpose to standard image format (height, width, channels)
+            vision_image = vision_image.transpose([1, 0, 2])
 
-        if self.parking_goals and not self.goals_detected:
-            self.goals_detected = True
+            # Convert RGB to BGR for YOLO detector
+            if len(vision_image.shape) == 3 and vision_image.shape[2] == 3:
+                vision_image_bgr = cv2.cvtColor(vision_image, cv2.COLOR_RGB2BGR)
+            else:
+                vision_image_bgr = vision_image
 
-    def _create_parking_goal(self, detection, screen_size):
-        screen_width, screen_height = screen_size
-        screen_center_x = detection['center'][0]
-        screen_center_y = detection['center'][1]
+            # Run YOLO detection on BGR image
+            detections = self.yolo_detector.detect_from_array(vision_image_bgr)
+            self.detected_objects = detections
+            self.parking_goals = []
 
-        world_x, world_y = self._screen_to_world_coords(
-            screen_center_x, screen_center_y, screen_width, screen_height
+            parking_spots_found = 0
+            for detection in detections:
+                if detection['class_name'] == "ParkingSpot":
+                    parking_spots_found += 1
+                    goal = self._create_parking_goal(detection, vision_image.shape)
+                    if goal:
+                        self.parking_goals.append(goal)
+
+            if self.parking_goals and not self.goals_detected:
+                self.goals_detected = True
+
+    def _create_parking_goal(self, detection, image_shape):
+        """Create parking goal from detection using image coordinates"""
+        if len(image_shape) == 3:
+            image_height, image_width = image_shape[:2]
+        else:
+            image_height, image_width = image_shape
+
+        image_center_x = detection['center'][0]
+        image_center_y = detection['center'][1]
+
+        # Convert image coordinates to world coordinates
+        world_x, world_y = self._image_to_world_coords(
+            image_center_x, image_center_y, image_width, image_height
         )
 
-        goal_x = world_x
-        goal_y = world_y
-
         goal = {
-            'position': [goal_x, goal_y],
+            'position': [world_x, world_y],
             'angle': 0,
             'size': [1.5, 1.5],
             'confidence': detection['confidence'],
@@ -97,19 +138,57 @@ class YOLOGoalDetector(GenericEnvironment):
 
         return goal
 
-    def _screen_to_world_coords(self, screen_x, screen_y, screen_width, screen_height):
-        norm_x = (screen_x - screen_width / 2) / (screen_width / 2)
-        norm_y = (screen_y - screen_height / 2) / (screen_height / 2)
+    def _image_to_world_coords(self, image_x, image_y, image_width, image_height):
+        """Convert image coordinates to world coordinates"""
+        if self.world_width is None or self.world_height is None:
+            # Fallback if world size not available
+            return 0, 0
 
+        # Normalize image coordinates to [-1, 1]
+        norm_x = (image_x - image_width / 2) / (image_width / 2)
+        norm_y = (image_y - image_height / 2) / (image_height / 2)
+
+        # Convert to world coordinates
         world_x = norm_x * (self.world_width / 2)
         world_y = norm_y * (self.world_height / 2)
 
         return world_x, world_y
 
+    def render(self, screen, transform_matrix):
+        """Render detected parking goals"""
+        for goal in self.parking_goals:
+            goal_x, goal_y = goal['position']
+            goal_screen = transform_matrix @ np.array([goal_x, goal_y, 1])
+            goal_screen_pos = (int(goal_screen[0]), int(goal_screen[1]))
+
+            radius_world = self.goal_radius * 0.7
+            radius_screen = max(4, int(radius_world * transform_matrix[0, 0]))
+
+            # Draw goal circle (green with red border)
+            pygame.draw.circle(screen, (0, 255, 0), goal_screen_pos, radius_screen, 2)
+            pygame.draw.circle(screen, (255, 0, 0), goal_screen_pos, radius_screen, 1)
+
+            # Draw confidence text
+            font = pygame.font.Font(None, 24)
+            confidence_text = font.render(f"{goal['confidence']:.2f}", True, (255, 255, 255))
+            text_pos = (goal_screen_pos[0] - 15, goal_screen_pos[1] - 30)
+            screen.blit(confidence_text, text_pos)
+
     def get_digest(self):
-        return f"YOLOGoalDetector(model_name={self.model_name}, confidence_threshold={self.confidence_threshold})"
+        return f"YOLOGoalStop(model_name={self.model_name}, confidence_threshold={self.confidence_threshold}, goal_radius={self.goal_radius})"
 
     def get_unified_state(self):
+        """Return current goals and detection info"""
+        # Ensure we always have at least one goal (fallback)
+        if not self.parking_goals:
+            self.parking_goals = [{
+                'position': [2000, 2000],
+                'angle': 0,
+                'size': [1.5, 1.5],
+                'confidence': 0.0,
+                'bidirectional': True
+            }]
+
         formatted_goals = []
         for goal in self.parking_goals:
             formatted_goals.append((
@@ -119,114 +198,10 @@ class YOLOGoalDetector(GenericEnvironment):
             ))
 
         return {
-            'name': 'YOLOGoals',
+            'name': 'YOLOGoalStop',
             'goals': formatted_goals,
+            'goal_radius': self.goal_radius,
             'parking_goals': self.parking_goals,
-            'detected_objects': self.detected_objects
+            'detected_objects': self.detected_objects,
+            'total_detections_run': self.total_detections_run
         }
-
-
-class YOLOGoalStop(GenericStop):
-    """
-    YOLO Goal Stop that provides placeholder goals during initialization
-    """
-
-    def __init__(self, goal_radius=1.5):
-        super().__init__()
-        self.goal_radius = goal_radius
-        self.goals_from_yolo = []
-        self.placeholder_provided = False
-
-    def reset(self, mode, state=None):
-        """Reset and provide initial placeholder goals"""
-        self.goals_from_yolo = []
-        self.placeholder_provided = True  # Always provide placeholder initially
-
-        # Try to get real YOLO goals if available
-        if state and 'environment' in state:
-            for module_state in state['environment']:
-                if module_state.get('name') == 'YOLOGoals':
-                    yolo_goals = module_state.get('goals', [])
-                    if yolo_goals:
-                        self.goals_from_yolo.append(yolo_goals)
-                        self.placeholder_provided = False
-                    break
-
-        if not self.goals_from_yolo:
-            print("YOLOGoalStop: Providing placeholder goals, waiting for YOLO detection...")
-
-    def check_stop(self, state):
-        """Check if car has reached any goal"""
-        # Update goals from current state
-        self._update_goals_from_state(state)
-
-        # If we only have placeholder goals, don't stop for them
-        if self.placeholder_provided and not self.goals_from_yolo:
-            return False, ""
-
-        if not self.goals_from_yolo:
-            return False, ""
-
-        car_position = np.array(state['car']['position'])
-
-        # Check distance to each detected goal
-        for goal_x, goal_y, goal_angle in self.goals_from_yolo:
-            goal_position = np.array([goal_x, goal_y])
-            distance = np.linalg.norm(car_position - goal_position)
-
-            if distance <= self.goal_radius:
-                return True, f"Goal Hit"
-
-        return False, ""
-
-    def _update_goals_from_state(self, state):
-        """Update goals from current state"""
-        if not state or 'environment' not in state:
-            return
-
-        for module_state in state['environment']:
-            if hasattr(module_state, 'get') and module_state.get('name') == 'YOLOGoals':
-                new_goals = module_state.get('goals', [])
-                if new_goals and (not self.goals_from_yolo or len(new_goals) != len(self.goals_from_yolo)):
-                    self.goals_from_yolo = new_goals
-                    self.placeholder_provided = False  # Real goals found
-                break
-
-    def render(self, screen, transform_matrix):
-        """Render YOLO goals"""
-        # Only render real goals, not placeholders
-        if not self.placeholder_provided:
-            for goal_x, goal_y, goal_angle in self.goals_from_yolo:
-                goal_screen = transform_matrix @ np.array([goal_x, goal_y, 1])
-                goal_screen_pos = (int(goal_screen[0]), int(goal_screen[1]))
-
-                radius_world = self.goal_radius * 0.7
-                radius_screen = max(4, int(radius_world * transform_matrix[0, 0]))
-
-                # Draw goal circle (green with red border)
-                pygame.draw.circle(screen, (0, 255, 0), goal_screen_pos, radius_screen, 2)
-                pygame.draw.circle(screen, (255, 0, 0), goal_screen_pos, radius_screen, 1)
-
-    def get_digest(self):
-        return f"YOLOGoalStop(goal_radius={self.goal_radius})"
-
-    def get_unified_state(self):
-        """Always provide goals - use placeholder if none detected yet"""
-        if self.goals_from_yolo:
-            return {
-                'name': 'YOLOGoalStop',
-                'goals': self.goals_from_yolo,
-                'goal_radius': self.goal_radius
-            }
-        else:
-            # Provide placeholder goals that won't trigger winning
-            # Place them far from typical car spawn locations
-            placeholder_goals = [
-                (200, 200, 0)
-            ]
-            return {
-                'name': 'YOLOGoalStop',
-                'goals': placeholder_goals,
-                'goal_radius': self.goal_radius,
-                'placeholder': True  # Flag indicating these are temporary
-            }
