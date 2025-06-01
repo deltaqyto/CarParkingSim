@@ -78,11 +78,6 @@ def get_yolo_env(render=False, goal_size=1, angle_tolerance=1, vision=True):
         CarProximityPenalty(penalty_distance=2.5, max_penalty=-0.03, exploration_bonus=0.005)
     ]
 
-    def load_env(**kwargs):
-        def func():
-            return SimulationEnvironment(**kwargs)
-        return func
-
     env = load_env(
         render=render, 
         world_width=world_width, 
