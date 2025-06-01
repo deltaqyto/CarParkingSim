@@ -60,29 +60,20 @@ class YOLOGoalDetector(GenericEnvironment):
             self._run_yolo_detection_from_screen(screen)
 
     def _run_yolo_detection_from_screen(self, screen):
-        try:
-            if screen is None:
-                return
+        detections = self.yolo_detector.detect_from_pygame_screen(screen)
+        self.detected_objects = detections
+        self.parking_goals = []
 
-            detections = self.yolo_detector.detect_from_pygame_screen(screen)
-            self.detected_objects = detections
-            self.parking_goals = []
+        parking_spots_found = 0
+        for detection in detections:
+            if detection['class_name'] == "ParkingSpot":
+                parking_spots_found += 1
+                goal = self._create_parking_goal(detection, screen.get_size())
+                if goal:
+                    self.parking_goals.append(goal)
 
-            parking_spots_found = 0
-            for detection in detections:
-                if detection['class_name'] == "ParkingSpot":
-                    parking_spots_found += 1
-                    goal = self._create_parking_goal(detection, screen.get_size())
-                    if goal:
-                        self.parking_goals.append(goal)
-
-            if self.parking_goals and not self.goals_detected:
-                self.goals_detected = True
-
-        except Exception as e:
-            print(f"YOLO detection error: {e}")
-            import traceback
-            traceback.print_exc()
+        if self.parking_goals and not self.goals_detected:
+            self.goals_detected = True
 
     def _create_parking_goal(self, detection, screen_size):
         screen_width, screen_height = screen_size
