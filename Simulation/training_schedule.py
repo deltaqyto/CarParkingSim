@@ -73,7 +73,7 @@ class YOLOParkingSchedule(GenericTrainingSchedule):
     def __init__(self):
         super().__init__()
         # Import YOLO environment
-        from Simulation.environments import get_yolo_env
+        from modules.custom_environments import get_yolo_env
         
         # Progressive YOLO parking difficulty - adjust goal radius for curriculum learning
         self.environments = [
