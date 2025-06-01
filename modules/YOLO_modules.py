@@ -215,7 +215,7 @@ class SmoothDistanceReward(GenericReward):
         self.last_distance = None
 
     def get_digest(self):
-        return f'SmoothDistanceReward(factor={self.reward_factor}, continuous={self.continuous})'
+        return f'SmoothDistanceReward(factor={self.reward_factor}, continuous={self.continuous}, continuous_scale={self.continuous_scale})'
 
     def get_reward(self, state):
         # Get YOLO goal distance
@@ -255,7 +255,7 @@ class CarProximityPenalty(GenericReward):
         self.goals_found_last_step = 0
 
     def get_digest(self):
-        return f'CarProximityPenalty(distance={self.penalty_distance}, max_penalty={self.max_penalty})'
+        return f'CarProximityPenalty(distance={self.penalty_distance}, max_penalty={self.max_penalty}, penalty_scale={self.penalty_scale}, exploration_bonus={self.exploration_bonus})'
 
     def get_reward(self, state):
         # Car proximity penalty
