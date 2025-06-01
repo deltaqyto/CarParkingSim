@@ -244,11 +244,7 @@ class YOLOGoalStop(GenericStop):
             # Provide placeholder goals that won't trigger winning
             # Place them far from typical car spawn locations
             placeholder_goals = [
-                (0, 0, 0),  # Center (safe default)
-                (25, 20, 0),  # Corner positions (far from typical spawns)
-                (-25, 20, 0),
-                (25, -20, 0),
-                (-25, -20, 0)
+                (200, 200, 0)
             ]
             return {
                 'name': 'YOLOGoalStop',
