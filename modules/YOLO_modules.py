@@ -145,10 +145,10 @@ class YOLOGoalStop(GenericStop):
         # Try to get real YOLO goals if available
         if state and 'environment' in state:
             for module_state in state['environment']:
-                if hasattr(module_state, 'get') and module_state.get('name') == 'YOLOGoals':
+                if module_state.get('name') == 'YOLOGoals':
                     yolo_goals = module_state.get('goals', [])
                     if yolo_goals:
-                        self.goals_from_yolo = yolo_goals
+                        self.goals_from_yolo.append(yolo_goals)
                         self.placeholder_provided = False
                     break
 
