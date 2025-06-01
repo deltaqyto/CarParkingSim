@@ -221,7 +221,7 @@ class YOLOGoalStop(GenericStop):
             distance = np.linalg.norm(car_position - goal_position)
 
             if distance <= self.goal_radius:
-                return True, f"Reached YOLO goal at ({goal_x:.1f}, {goal_y:.1f})"
+                return True, f"Goal Hit"
 
         return False, ""
 

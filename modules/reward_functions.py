@@ -1,8 +1,8 @@
 from modules.generic_modules import GenericReward
 
 
-class GoalEndReward(GenericReward): #added yolo goals to this 
-    def __init__(self, reward= 20):
+class GoalEndReward(GenericReward):
+    def __init__(self, reward=20):
         super().__init__()
         self.reward = reward
 
@@ -10,10 +10,7 @@ class GoalEndReward(GenericReward): #added yolo goals to this
         return f'GoalEndReward(reward={self.reward})'
 
     def get_reward(self, state):
-        # Check for YOLO goal achievement
-        stop_reasons = state.get('stop_reasons', [])
-        yolo_goal_hit = any('Reached YOLO goal' in str(reason) for reason in stop_reasons)
-        return 'Goal End', self.reward if yolo_goal_hit else 0
+        return 'Goal End', self.reward if 'Goal Hit' in state['stop_reasons'] else 0
 
 
 class TimePenalty(GenericReward):
