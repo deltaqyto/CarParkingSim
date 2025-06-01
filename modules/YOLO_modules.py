@@ -206,24 +206,6 @@ class YOLOGoalStop(GenericStop):
         }
 
 
-class SmoothCollisionPenalty(GenericReward):
-    def __init__(self, reward=-10, car_penalty_multiplier=2.0):
-        super().__init__()
-        self.reward = reward
-        self.car_penalty_multiplier = car_penalty_multiplier
-
-    def get_digest(self):
-        return f'SmoothCollisionPenalty(reward={self.reward}, car_multiplier={self.car_penalty_multiplier})'
-
-    def get_reward(self, state):
-        if not state['collisions']:
-            return 'Smooth Collision Penalty', 0
-
-        # Enhanced penalty for parking environments (hitting cars vs walls)
-        penalty = self.reward * self.car_penalty_multiplier
-        return 'Smooth Collision Penalty', penalty
-
-
 class SmoothDistanceReward(GenericReward):
     def __init__(self, reward_factor=-1 / 6, continuous=False, continuous_scale=0.05):
         super().__init__()
