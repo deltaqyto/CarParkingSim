@@ -3,6 +3,7 @@ import shutil
 import yaml
 import random
 from ultralytics import YOLO
+import string
 
 
 def setup_directories(base_path):
@@ -133,26 +134,40 @@ def create_data_yaml(classes, output_path, data_dir):
     print(f"Created data.yaml with {len(classes)} classes: {classes}")
 
 
-def train_model(data_yaml_path, model_size='yolo11s.pt', epochs=60, imgsz=640, model_dir='models/YOLO'):
+def train_model(data_yaml_path, model_size='yolo11s.pt', epochs=60, imgsz=640, model_dir='models/YOLO', model_name='model'):
     """Train the YOLO model using ultralytics Python API"""
     # Create model directory if it doesn't exist
     os.makedirs(model_dir, exist_ok=True)
+
+    # Add a letter suffix if name exists
+    base_name = model_name
+    full_path = os.path.join(model_dir, model_name)
+
+    if os.path.exists(full_path):
+        for letter in string.ascii_lowercase:
+            model_name = f"{base_name}_{letter}"
+            full_path = os.path.join(model_dir, model_name)
+            if not os.path.exists(full_path):
+                break
 
     # Load the model
     model = YOLO(model_size)
 
     # Train the model
     print(f"Starting training with YOLO model: {model_size}")
+    print(f"Model will be saved as: {model_name}")
+
     results = model.train(
         data=data_yaml_path,
         epochs=epochs,
         imgsz=imgsz,
-        project=os.path.dirname(model_dir),
-        name=os.path.basename(model_dir)
+        project=model_dir,
+        name=model_name
     )
 
     # Get the path to the best weights
-    best_weights_path = os.path.join(model_dir, 'weights/best.pt')
+    full_model_path = os.path.join(model_dir, model_name)
+    best_weights_path = os.path.join(full_model_path, 'weights/best.pt')
 
     print("Training completed!")
     print(f"Model saved to: {best_weights_path}")
@@ -160,9 +175,9 @@ def train_model(data_yaml_path, model_size='yolo11s.pt', epochs=60, imgsz=640, m
     return best_weights_path
 
 
-def prepare_and_train_yolo(source_path, model_size='yolo11s.pt', epochs=60, imgsz=640,
+def prepare_and_train_yolo(source_path="YOLO", model_size='yolo11s.pt', epochs=60, imgsz=640,
                            train_ratio=0.8, val_ratio=0.15, test_ratio=0.05,
-                           working_dir='temp_data', model_dir='models/YOLO/unnamed'):
+                           working_dir='temp_data', model_dir='models/YOLO', model_name='unnamed_model'):
     """Main function to prepare dataset and train YOLO model"""
     # Ensure absolute paths
     working_dir = os.path.abspath(working_dir)
@@ -213,12 +228,13 @@ def prepare_and_train_yolo(source_path, model_size='yolo11s.pt', epochs=60, imgs
 
     # Step 8: Train the model
     print("\n8. Starting model training...")
-    train_model(yaml_path, model_size, epochs, imgsz, model_dir)
+    best_weights_path = train_model(yaml_path, model_size, epochs, imgsz, model_dir, model_name)
 
     print("\n" + "=" * 50)
     print("TRAINING COMPLETE!")
     print("=" * 50)
-    print(f"Your trained model is saved at: {os.path.join(model_dir, 'weights/best.pt')}")
-    print(f"Training results and metrics are saved in: {model_dir}")
+    model_folder = os.path.dirname(best_weights_path)
+    print(f"Your trained model is saved at: {best_weights_path}")
+    print(f"Training results and metrics are saved in: {model_folder}")
     print("\nTo test your model, you can use the yolo_detect.py script:")
-    print(f"python yolo_detect.py --model {os.path.join(model_dir, 'weights/best.pt')} --source path/to/test/image.jpg")
+    print(f"python yolo_detect.py --model {best_weights_path} --source path/to/test/image.jpg")
