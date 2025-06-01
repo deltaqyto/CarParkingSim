@@ -164,221 +164,168 @@ class ParkingLotModule(GenericEnvironment):  # < Recommend renaming this to some
 
 
 from modules.generic_modules import GenericEnvironment
-from yolo_detect import YOLODetector
+from AI.YOLO.yolo_detect import YOLODetector
 import math
 import pygame
 import numpy as np
 import cv2
+from os import path
 
 
 class YOLOGoalDetector(GenericEnvironment):
-    def __init__(self, yolo_model_path=None, confidence_threshold=0.5):
+    def __init__(self, model_name, search_path="models", confidence_threshold=0.5):
         super().__init__()
+        self.model_name = model_name
+        self.search_path = search_path
         self.world_width = None
         self.world_height = None
         self.parking_goals = []
         self.detected_objects = []
-        
-        # Get model path if not provided
-        if yolo_model_path is None:
-            yolo_model_path = self._get_model_path()
-        
-        # Initialize YOLO detector
+
+        yolo_model_path = self._get_model_path()
         self.yolo_detector = YOLODetector(yolo_model_path, confidence_threshold)
-        
-        # Track detection timing
+
         self.detection_frame_counter = 0
-        self.detection_interval = 30  # Run detection every 30 frames
+        self.detection_interval = 30
         self.goals_detected = False
         self.total_detections_run = 0
 
+    def _get_model_path(self):
+        if self.model_name is None:
+            raise ValueError("model_name is required")
+
+        model_path = path.join(self.search_path, "YOLO", self.model_name, "weights", "best.pt")
+
+        if not path.exists(model_path):
+            raise ValueError(f"YOLO model not found at {model_path}")
+
+        return model_path
+
     def reset(self, mode, state=None):
-        """Environment setup"""
         world_size = state['world_size']
         self.world_width = world_size[0]
         self.world_height = world_size[1]
-        
-        # Reset parking goals and detected objects
+
         self.parking_goals = []
         self.detected_objects = []
         self.detection_frame_counter = 0
         self.goals_detected = False
         self.total_detections_run = 0
-        #print("DEBUG: YOLOGoalDetector reset completed")
 
     def render(self, screen, transform_matrix):
-        """
-        Use the render method to capture screen and run YOLO detection
-        This is called by SimulationEnvironment during rendering
-        """
         if not self.yolo_detector.is_active():
             return
-        
+
         self.detection_frame_counter += 1
-        
-        # Run detection periodically (every N frames)
         interval = 5 if not self.goals_detected else self.detection_interval
-        
+
         if self.detection_frame_counter >= interval:
             self.detection_frame_counter = 0
             self.total_detections_run += 1
-            #print(f"DEBUG: Running YOLO detection #{self.total_detections_run} via render method")
             self._run_yolo_detection_from_screen(screen)
 
     def _run_yolo_detection_from_screen(self, screen):
-        """Run YOLO detection on the pygame screen"""
         try:
             if screen is None:
-                #print("DEBUG: Screen is None")
                 return
-            
-            #print(f"DEBUG: Screen size: {screen.get_size()}")
-            
-            # Run YOLO detection directly on the pygame screen
+
             detections = self.yolo_detector.detect_from_pygame_screen(screen)
             self.detected_objects = detections
-            
-            #print(f"DEBUG: YOLO found {len(detections)} total detections")
-            
-            # Clear previous parking goals
             self.parking_goals = []
-            
-            # Convert detections to parking goals
+
             parking_spots_found = 0
             for detection in detections:
-                #print(f"DEBUG: Detection - Class: {detection['class_name']}, Confidence: {detection['confidence']:.2f}")
                 if self._is_parking_related(detection['class_name']):
                     parking_spots_found += 1
                     goal = self._create_parking_goal(detection, screen.get_size())
                     if goal:
                         self.parking_goals.append(goal)
-                        #print(f"DEBUG: Created goal at ({goal['position'][0]:.1f}, {goal['position'][1]:.1f})")
-            
-            #print(f"DEBUG: Found {parking_spots_found} parking spots, created {len(self.parking_goals)} goals")
-            
-            # Update goals detected status
+
             if self.parking_goals and not self.goals_detected:
                 self.goals_detected = True
                 print(f"YOLO: SUCCESS! Found {len(self.parking_goals)} parking goals from screen!")
             elif detections:
                 detected_classes = [d['class_name'] for d in detections]
-                #print(f"YOLO detected: {set(detected_classes)}, but no parking spots")
             else:
                 print("YOLO: No detections found")
-                
+
         except Exception as e:
             print(f"YOLO detection error: {e}")
             import traceback
             traceback.print_exc()
 
     def _is_parking_related(self, class_name):
-        """Check if detected class is relevant for parking spots"""
         if class_name == 'ParkingSpot':
-            #print(f"DEBUG: Found ParkingSpot class!")
             return True
-        
+
         parking_classes = [
-            'parkingspot', 'parking_spot', 'parking', 'parking_space', 
+            'parkingspot', 'parking_spot', 'parking', 'parking_space',
             'empty_space', 'slot'
         ]
-        
+
         result = any(cls in class_name.lower() for cls in parking_classes)
-        if result:
-            #print(f"DEBUG: Found parking-related class: {class_name}")
-            return result
+        return result
 
     def _create_parking_goal(self, detection, screen_size):
-        """Create a parking goal from YOLO detection - CENTER placement"""
         screen_width, screen_height = screen_size
-        
         screen_center_x = detection['center'][0]
         screen_center_y = detection['center'][1]
-        
-        # Convert to world coordinates using screen dimensions
+
         world_x, world_y = self._screen_to_world_coords(
             screen_center_x, screen_center_y, screen_width, screen_height
         )
-        
-        #print(f"DEBUG: Parking spot at screen ({screen_center_x:.1f}, {screen_center_y:.1f}) -> world ({world_x:.2f}, {world_y:.2f})")
-        
-        # Calculate angle to face center of map
+
         angle_to_center = self._calculate_angle_to_center(world_x, world_y)
-        
-        # CENTER PLACEMENT - No offsets, place goal exactly at detected center
         goal_x = world_x
         goal_y = world_y
-        
-        #print(f"DEBUG: Goal placed at CENTER: ({goal_x:.2f}, {goal_y:.2f})")
-        
+
         goal = {
             'position': [goal_x, goal_y],
             'angle': angle_to_center,
-            'size': [1.5, 1.5],  # Larger size for center placement
+            'size': [1.5, 1.5],
             'confidence': detection['confidence'],
             'class_name': detection['class_name'],
             'bidirectional': True
         }
-        
+
         return goal
 
     def _screen_to_world_coords(self, screen_x, screen_y, screen_width, screen_height):
-        """Convert screen coordinates to world coordinates"""
-        # Convert screen coordinates to normalized coordinates (-1 to 1)
         norm_x = (screen_x - screen_width / 2) / (screen_width / 2)
         norm_y = (screen_y - screen_height / 2) / (screen_height / 2)
-        
-        # Scale to world coordinates
+
         world_x = norm_x * (self.world_width / 2)
         world_y = norm_y * (self.world_height / 2)
-        
+
         return world_x, world_y
 
     def _calculate_angle_to_center(self, x, y):
-        """Calculate angle from position to center of map"""
         if x == 0 and y == 0:
             return 0
-        
+
         angle_rad = math.atan2(-y, -x)
         angle_deg = math.degrees(angle_rad)
-        
+
         if angle_deg < 0:
             angle_deg += 360
-            
+
         return angle_deg
 
     def get_digest(self):
-        return f"YOLOGoalDetector(goals_count={len(self.parking_goals)})"
+        return f"YOLOGoalDetector(model_name={self.model_name}, goals_count={len(self.parking_goals)})"
 
     def get_unified_state(self):
-        """Return formatted goals for the simulation"""
         formatted_goals = []
         for goal in self.parking_goals:
             formatted_goals.append((
-                goal['position'][0], 
-                goal['position'][1], 
+                goal['position'][0],
+                goal['position'][1],
                 math.radians(goal['angle'])
             ))
-        
+
         return {
             'name': 'YOLOGoals',
             'goals': formatted_goals,
             'parking_goals': self.parking_goals,
             'detected_objects': self.detected_objects
         }
-
-    def _get_model_path(self):
-        """Get the path to the YOLO model file"""
-        import os
-        
-        current_dir = os.path.dirname(os.path.abspath(__file__))
-        project_root = os.path.dirname(current_dir)
-        model_path = os.path.join(project_root, "runs", "detect", "train", "weights", "best.pt")
-        
-        print(f"Looking for YOLO model at: {model_path}")
-        
-        if os.path.exists(model_path):
-            print(f"YOLO model found!")
-            return model_path
-        else:
-            print(f"YOLO model not found, using default")
-            return "yolov8n.pt"

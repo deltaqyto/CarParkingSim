@@ -59,7 +59,7 @@ def get_yolo_env(render=False, goal_size=1, angle_tolerance=1, vision=True):
     environment_modules = [
         Borders(), 
         ParkingLotModule(configuration=0),
-        YOLOGoalDetector()
+        YOLOGoalDetector(model_name="DET_001")
     ]
 
     # Use improved YOLO stop condition that handles timing gracefully
