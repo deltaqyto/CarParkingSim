@@ -1,29 +1,33 @@
 from Simulation.environments import load_env
 from modules.environment_modules import Borders, ParkingLotModule
 from modules.reward_functions import GoalEndReward, TimePenalty, SmoothCollisionPenalty, SmoothDistanceReward, CarProximityPenalty
-from modules.stop_conditions import StepLimit, CollisionStop
+from modules.stop_conditions import StepLimit, CollisionStop, bidirectional_goal
 from modules.observation_modules import ClassicalObservation
 from modules.module_reward_display import RewardDisplayModule
 from modules.YOLO_modules import YOLOGoalDetector, YOLOGoalStop
 
 
-def get_yolo_env(render=False, goal_size=1, angle_tolerance=1, vision=True):
+def get_yolo_env(render=False, goal_size=0.8, angle_tolerance=1, vision_model="DET_001"):
     world_width = 60
     world_aspect = 3 / 4
+    world_height = world_width * world_aspect
 
     # YOLO-enabled environment modulesS
     environment_modules = [
         Borders(),
         ParkingLotModule(configuration=0),
-        YOLOGoalDetector(model_name="DET_001")
     ]
 
     # Use improved YOLO stop condition that handles timing gracefully
     stop_conditions = [
         StepLimit(step_limit=400),
         CollisionStop(),
-        YOLOGoalStop(goal_radius=0.8)  # Use improved version
     ]
+    if vision_model is not None:
+        environment_modules.append(YOLOGoalDetector(model_name=vision_model))
+        stop_conditions.append(YOLOGoalStop(goal_radius=goal_size, angle_tolerance=999))
+    else:
+        stop_conditions.append(bidirectional_goal(region=[-world_width / 2 * 0.8, world_width / 2 * 0.8, -world_height / 2 * 0.8, world_height / 2 * 0.8], goal_size=goal_size, angle_tolerance=angle_tolerance))
 
     # YOLO-optimized rewards
     reward_functions = [
@@ -44,7 +48,7 @@ def get_yolo_env(render=False, goal_size=1, angle_tolerance=1, vision=True):
         environment_modules=environment_modules,
         reward_functions=reward_functions,
         observation_modules=[ClassicalObservation()],
-        generate_vision=vision
+        generate_vision=vision_model is not None
     )
 
     return env
