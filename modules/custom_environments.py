@@ -1,10 +1,10 @@
 from Simulation.environments import load_env
 from modules.environment_modules import Borders, ParkingLotModule
-from modules.reward_functions import GoalEndReward, TimePenalty, SmoothCollisionPenalty, SmoothDistanceReward, CarProximityPenalty
+from modules.reward_functions import GoalEndReward, TimePenalty
 from modules.stop_conditions import StepLimit, CollisionStop, bidirectional_goal
 from modules.observation_modules import ClassicalObservation
 from modules.module_reward_display import RewardDisplayModule
-from modules.YOLO_modules import YOLOGoalStop
+from modules.YOLO_modules import YOLOGoalStop, SmoothCollisionPenalty, SmoothDistanceReward, CarProximityPenalty
 
 
 def get_yolo_env(render=False, goal_size=0.8, angle_tolerance=999, vision_model="DET_001"):
