@@ -252,6 +252,11 @@ class SimulationEnvironment:
 
         self.state = self.get_unified_state()
 
+        if self.generate_vision:
+            self.render_frame_lightweight()
+
+        self.state['vision'] = pygame.surfarray.array3d(self.vision_surface) if self.vision_surface is not None else None
+
         stop_condition_triggered = False
         is_stopping = False
         reasons = []
@@ -263,10 +268,6 @@ class SimulationEnvironment:
         stop_condition_triggered = is_stopping
         self.state['stop_reasons'] = reasons
 
-        if self.generate_vision:
-            self.render_frame_lightweight()
-
-        self.state['vision'] = pygame.surfarray.array3d(self.vision_surface) if self.vision_surface is not None else None
         self.observation = self.get_observation()
 
         if self.render:
