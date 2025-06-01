@@ -33,7 +33,7 @@ def get_yolo_env(render=False, goal_size=0.8, angle_tolerance=999, vision_model=
         GoalEndReward(reward=100),
         TimePenalty(reward=-0.01),
         CollisionPenalty(reward=-30),
-        SmoothDistanceReward(continuous=True, continuous_scale=0.8),
+        SmoothDistanceReward(continuous_scale=0.8),
         CarProximityPenalty(penalty_distance=2.5, max_penalty=-0.03, exploration_bonus=0.005),
         RewardDisplayModule()
 

@@ -207,42 +207,37 @@ class YOLOGoalStop(GenericStop):
 
 
 class SmoothDistanceReward(GenericReward):
-    def __init__(self, reward_factor=-1 / 6, continuous=False, continuous_scale=0.05):
+    def __init__(self, reward_factor=-1 / 6, continuous_scale=0.05, low_distance_reward=3.0):
         super().__init__()
         self.reward_factor = reward_factor
-        self.continuous = continuous
         self.continuous_scale = continuous_scale
+        self.low_distance_reward = low_distance_reward
         self.last_distance = None
 
     def get_digest(self):
-        return f'SmoothDistanceReward(factor={self.reward_factor}, continuous={self.continuous}, continuous_scale={self.continuous_scale})'
+        return f'SmoothDistanceReward(factor={self.reward_factor}, continuous_scale={self.continuous_scale}, low_distance_reward={self.low_distance_reward})'
 
     def get_reward(self, state):
         # Get goal distance
         closest_goal_data = state.get('closest_goal', {})
         goal_distance = closest_goal_data.get('distance', float('inf'))
 
-        # If no goals detected yet, return small exploration penalty
         if goal_distance == float('inf'):
-            return 'SmoothDistanceReward', -0.001 if self.continuous else 0
+            return 'SmoothDistanceReward', 0
 
-        if self.continuous:
-            # Continuous feedback - reward for getting closer to goals
-            reward = 0
-            if self.last_distance is not None and self.last_distance != float('inf'):
-                distance_improvement = self.last_distance - goal_distance
-                reward = distance_improvement * self.continuous_scale
+        # Continuous feedback - reward for getting closer to goals
+        reward = 0
+        if self.last_distance is not None and self.last_distance != float('inf'):
+            distance_improvement = self.last_distance - goal_distance
+            reward = distance_improvement * self.continuous_scale
 
-                # Extra bonus for being very close to goals
-                if goal_distance < 3.0:
-                    proximity_bonus = (3.0 - goal_distance) / 3.0 * 0.02
-                    reward += proximity_bonus
+            # Extra bonus for being very close to goals
+            if goal_distance < self.low_distance_reward:
+                proximity_bonus = (self.low_distance_reward - goal_distance) / self.low_distance_reward * 0.02
+                reward += proximity_bonus
 
-            self.last_distance = goal_distance
-            return 'SmoothDistanceReward', reward
-        else:
-            # End-of-episode penalty based on distance to goal
-            return 'SmoothDistanceReward', self.reward_factor * goal_distance if state['stop_reasons'] else 0
+        self.last_distance = goal_distance
+        return 'SmoothDistanceReward', reward
 
 
 class CarProximityPenalty(GenericReward):
@@ -283,7 +278,7 @@ class CarProximityPenalty(GenericReward):
             penalty_ratio = max(0, (self.penalty_distance - min_distance) / self.penalty_distance)
             proximity_penalty = self.max_penalty * (penalty_ratio ** self.penalty_scale)
 
-        # YOLO goal discovery bonus
+        # Goal discovery bonus
         current_yolo_goals = 0
         for env_module in state['environment']:
             if env_module.get('name') == 'YOLOGoals':
