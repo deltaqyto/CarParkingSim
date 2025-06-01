@@ -1,29 +1,45 @@
 import os
 
-from Ai.BigProj.Simulation.environments import get_basic_env
-
 os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = "hide"
 import pygame
-import numpy as np
-from os import path
-import sys
+from pyinstrument import Profiler
+from Simulation.environments import get_basic_env
 
-from Objects.car import Car
-from Utility.console_logger import ConsoleLogger
-from Simulation.simulation_environment import SimulationEnvironment
 
-from pyinstrument import Profiler # pip install pygame numpy pyinstrument
+def select_environment():
+    """Let user choose which environment to run"""
+    print("Select environment:")
+    print("1. Basic Environment (default)")
+    print("2. Parking Environment")
+
+    out = None
+    while out is None:
+        choice = input("Enter your choice (number or press Enter for default): ").strip()
+
+        if choice == "" or choice == "1":
+            out = get_basic_env(render=True, goal_size=2, angle_tolerance=1.57)()
+        else:
+            print("Invalid choice. Please enter a number.")
+    print("Loading Environment...")
+    return out
 
 
 if __name__ == "__main__":
     render = True
     instrument = False
 
-    from Simulation.environments import get_basic_env
-    sim_env = get_basic_env(render, 2, 1.57)()
+    # Let user select environment
+    sim_env = select_environment()
+
     print('=' * 20 + " Digest " + '=' * 20)
     print(sim_env.get_digest())
     print('=' * 20 + " End Digest " + '=' * 20)
+    print("\nControls:")
+    print("Arrow Keys: Drive (Up=Forward, Down=Reverse, Left/Right=Steer)")
+    print("R: Reset environment")
+    print("Q: Quit")
+    print("-" * 50)
+
     rewards = 0
 
     # Create profiler
@@ -56,24 +72,23 @@ if __name__ == "__main__":
                 sim_env.reset_environment()
                 throttle = 0
                 steer = 0
+                print("Environment reset!")
             if keys[pygame.K_q]:
                 break
 
         done, observation, reward, state = sim_env.step([throttle, steer])
-        #print(state)
         rewards += reward
         step_count += 1
-        
+
         car_position = state['car']['position']
         car_angle = state['car']['angle']
         print(f"\rCar Position: ({car_position[0]:.2f}, {car_position[1]:.2f}) Angle: {car_angle:.2f}°", end='')
 
-
         if done:
-            print(f"Episode reward: {rewards}")
+            print(f"\nEpisode reward: {rewards}")
             rewards = 0
             sim_env.reset_environment()
-            print(state['stop_reasons'])
+            print("Stop reasons:", state['stop_reasons'])
         if 'User Quit' in state['stop_reasons']:
             break
 
