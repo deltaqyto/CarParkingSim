@@ -2,8 +2,7 @@ import os
 import shutil
 import yaml
 import random
-import ultralytics
-from pathlib import Path
+from ultralytics import YOLO
 
 
 def setup_directories(base_path):
@@ -134,21 +133,36 @@ def create_data_yaml(classes, output_path, data_dir):
     print(f"Created data.yaml with {len(classes)} classes: {classes}")
 
 
-def train_model(data_yaml_path, model_size='yolo11s.pt', epochs=60, imgsz=640, model_dir='.'):
-    """Train the YOLO model"""
-    # Run training command
-    train_command = f"yolo detect train data={data_yaml_path} model={model_size} epochs={epochs} imgsz={imgsz} project={model_dir}"
-    print(f"Starting training with command: {train_command}")
+def train_model(data_yaml_path, model_size='yolo11s.pt', epochs=60, imgsz=640, model_dir='models/YOLO'):
+    """Train the YOLO model using ultralytics Python API"""
+    # Create model directory if it doesn't exist
+    os.makedirs(model_dir, exist_ok=True)
 
-    os.system(train_command)
+    # Load the model
+    model = YOLO(model_size)
+
+    # Train the model
+    print(f"Starting training with YOLO model: {model_size}")
+    results = model.train(
+        data=data_yaml_path,
+        epochs=epochs,
+        imgsz=imgsz,
+        project=os.path.dirname(model_dir),
+        name=os.path.basename(model_dir)
+    )
+
+    # Get the path to the best weights
+    best_weights_path = os.path.join(model_dir, 'weights/best.pt')
 
     print("Training completed!")
-    print(f"Model saved to: {os.path.join(model_dir, 'detect/train/weights/best.pt')}")
+    print(f"Model saved to: {best_weights_path}")
+
+    return best_weights_path
 
 
 def prepare_and_train_yolo(source_path, model_size='yolo11s.pt', epochs=60, imgsz=640,
                            train_ratio=0.8, val_ratio=0.15, test_ratio=0.05,
-                           working_dir='temp_data', model_dir='models/YOLO'):
+                           working_dir='temp_data', model_dir='models/YOLO/unnamed'):
     """Main function to prepare dataset and train YOLO model"""
     # Ensure absolute paths
     working_dir = os.path.abspath(working_dir)
@@ -204,7 +218,7 @@ def prepare_and_train_yolo(source_path, model_size='yolo11s.pt', epochs=60, imgs
     print("\n" + "=" * 50)
     print("TRAINING COMPLETE!")
     print("=" * 50)
-    print(f"Your trained model is saved at: {os.path.join(model_dir, 'detect/train/weights/best.pt')}")
-    print(f"Training results and metrics are saved in: {os.path.join(model_dir, 'detect/train/')}")
+    print(f"Your trained model is saved at: {os.path.join(model_dir, 'weights/best.pt')}")
+    print(f"Training results and metrics are saved in: {model_dir}")
     print("\nTo test your model, you can use the yolo_detect.py script:")
-    print(f"python yolo_detect.py --model {os.path.join(model_dir, 'detect/train/weights/best.pt')} --source path/to/test/image.jpg")
+    print(f"python yolo_detect.py --model {os.path.join(model_dir, 'weights/best.pt')} --source path/to/test/image.jpg")
