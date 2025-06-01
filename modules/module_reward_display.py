@@ -31,7 +31,6 @@ class RewardDisplayModule(GenericReward):
 
     def reset(self, mode, state):
         if mode == 'reward':
-            print(state)
             self.reward_history = []
             self.current_total_reward = 0
             self.current_step_reward = 0

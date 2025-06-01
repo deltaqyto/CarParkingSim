@@ -59,7 +59,6 @@ class ParkingLotModule(GenericEnvironment):  # < Recommend renaming this to some
         self.world_width = world_size[0]
         self.world_height = world_size[1]
         self.collision_rects = []
-        print("Adding static cars.. ")  # In your final code, strongly recommend you do not print anything except errors to the console, to avoid spamming it
 
         # Available colors for cars
         colors = [(240, 230, 0), (0, 255, 0), (0, 233, 255)]

@@ -78,11 +78,6 @@ class YOLOGoalDetector(GenericEnvironment):
 
             if self.parking_goals and not self.goals_detected:
                 self.goals_detected = True
-                print(f"YOLO: SUCCESS! Found {len(self.parking_goals)} parking goals from screen!")
-            elif detections:
-                detected_classes = [d['class_name'] for d in detections]
-            else:
-                print("YOLO: No detections found")
 
         except Exception as e:
             print(f"YOLO detection error: {e}")
@@ -195,7 +190,6 @@ class YOLOGoalStop(GenericStop):
                     if yolo_goals:
                         self.goals_from_yolo = yolo_goals
                         self.placeholder_provided = False
-                        print(f"YOLOGoalStop: Found {len(yolo_goals)} YOLO goals during reset")
                     break
 
         if not self.goals_from_yolo:
@@ -236,7 +230,6 @@ class YOLOGoalStop(GenericStop):
                 if new_goals and (not self.goals_from_yolo or len(new_goals) != len(self.goals_from_yolo)):
                     self.goals_from_yolo = new_goals
                     self.placeholder_provided = False  # Real goals found
-                    print(f"YOLOGoalStop: Updated to {len(new_goals)} YOLO goals")
                 break
 
     def render(self, screen, transform_matrix):
