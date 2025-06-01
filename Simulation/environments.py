@@ -44,37 +44,44 @@ def get_basic_env(render=False, goal_size=1, angle_tolerance=1, vision=False):
     return env
 
 
-def get_yolo_env(render=False, goal_size=1, angle_tolerance=1, vision=False):
-    from modules.environment_modules import YOLOGoalDetector
-    from modules.stop_conditions import YOLOGoalStop  # You'll need to add this import
+def get_yolo_env(render=False, goal_size=1, angle_tolerance=1, vision=True):
+    from modules.environment_modules import Borders, ParkingLotModule, YOLOGoalDetector
+    from modules.reward_functions import (GoalEndReward, TimePenalty, SmoothCollisionPenalty, 
+                                        SmoothDistanceReward, CarProximityPenalty)
+    from modules.stop_conditions import StepLimit, CollisionStop, YOLOGoalStop
+    from modules.observation_modules import ClassicalObservation
     
     world_width = 60
     world_aspect = 3 / 4
     world_height = world_width * world_aspect
 
-    # YOLO-enabled environment modules - let YOLOGoalDetector find the model automatically
+    # YOLO-enabled environment modulesS
     environment_modules = [
         Borders(), 
         ParkingLotModule(configuration=0),
-        YOLOGoalDetector()  # No path needed - it will find the model automatically
+        YOLOGoalDetector()
     ]
 
-    # YOLO-enabled stop conditions
+    # Use improved YOLO stop condition that handles timing gracefully
     stop_conditions = [
-        StepLimit(step_limit=400), #slightly increased steps 
+        StepLimit(step_limit=400),
         CollisionStop(),
-        YOLOGoalStop(goal_radius=2)  # Use YOLO goals instead of bidirectional_goal
-        
+        YOLOGoalStop(goal_radius=0.8)  # Use improved version
     ]
 
-     # YOLO-optimized rewards
+    # YOLO-optimized rewards
     reward_functions = [
-        GoalEndReward(reward=100),               # Big reward for reaching YOLO goals
-        TimePenalty(reward=-0.01),              # Low time pressure for exploration
+        GoalEndReward(reward=100),
+        TimePenalty(reward=-0.01),
         SmoothCollisionPenalty(reward=-15, car_penalty_multiplier=2.0),
         SmoothDistanceReward(continuous=True, continuous_scale=0.8),
         CarProximityPenalty(penalty_distance=2.5, max_penalty=-0.03, exploration_bonus=0.005)
     ]
+
+    def load_env(**kwargs):
+        def func():
+            return SimulationEnvironment(**kwargs)
+        return func
 
     env = load_env(
         render=render, 

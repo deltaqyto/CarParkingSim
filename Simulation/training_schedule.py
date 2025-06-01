@@ -64,7 +64,7 @@ class YOLOParkingSchedule(GenericTrainingSchedule):
         
         # Progressive YOLO parking difficulty - adjust goal radius for curriculum learning
         self.environments = [
-            get_yolo_env(goal_size=2.5, angle_tolerance=pi/2, render=True)   # Stage 1: Large goal, any angle
+            get_yolo_env(goal_size=2.5, angle_tolerance=pi/2, render=False)   # Stage 1: Large goal, any angle
             #get_yolo_env(goal_size=2.0, angle_tolerance=pi/4, render=True),   # Stage 2: Medium goal, loose angle
             #get_yolo_env(goal_size=1.5, angle_tolerance=pi/6, render=True),   # Stage 3: Smaller goal, tighter angle
             #get_yolo_env(goal_size=1.0, angle_tolerance=pi/8, render=True)    # Stage 4: Precise parking

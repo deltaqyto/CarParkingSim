@@ -3,12 +3,113 @@ from Utility.console_logger import ConsoleLogger
 from Objects.obstacles import RectObstacle
 import pygame
 import numpy as np
+import colorsys
+from random import uniform
 
 
 def smoothstep(start, stop, steps, inclusive=False):
     inclusive_val = 1 if inclusive else 0
     step = (stop-start)/(steps - inclusive_val)
     return [start + step * n for n in range(steps)]
+
+
+def render_car(surface, transform, position, direction_vector=None, car_angle=None, width=2.0, length=4.7, current_steer=0.0, color=None, wheel_width_offset=1.4, wheel_length_offset=0.1):
+    #wheel_width_offset: 1.0 = wheels at car edge, >1.0 = wheels outside car, <1.0 = wheels inside car
+    #wheel_length_offset: position along car length (0.0 = front, 1.0 = back)
+
+    if color is None:
+        hue = uniform(30, 330) / 360.0
+        saturation = uniform(0.6, 1.0)
+        value = uniform(0.6, 1.0)
+
+        # Convert HSV to RGB and scale to 0-255
+        rgb_float = colorsys.hsv_to_rgb(hue, saturation, value)
+        color = tuple(int(c * 255) for c in rgb_float)
+
+    # Calculate car dimensions and orientation
+    if car_angle is None:
+        assert direction_vector is not None
+        car_angle = -np.arctan2(direction_vector[1], direction_vector[0]) * 180 / pi
+
+    # Apply transform to car position
+    pos_vec = np.array([position[0], position[1], 1])
+    screen_pos = transform @ pos_vec
+    screen_x, screen_y = int(screen_pos[0]), int(screen_pos[1])
+
+    # Determine car rectangle dimensions after transform
+    scale_x = np.sqrt(transform[0, 0] ** 2 + transform[0, 1] ** 2)
+    scale_y = np.sqrt(transform[1, 0] ** 2 + transform[1, 1] ** 2)
+    car_width_px = int(width * scale_x)
+    car_length_px = int(length * scale_y)
+
+    # Calculate wheel dimensions
+    wheel_width = max(3, int(car_width_px * 0.25))
+    wheel_length = max(5, int(car_length_px * 0.2))
+
+    # Calculate extended surface size to accommodate wheels that might extend beyond car body
+    extended_width = car_width_px + wheel_width * 2 * max(0.0, wheel_width_offset - 1.0)
+
+    # Create car body rectangle with extended size for wheels
+    car_rect = pygame.Surface((car_length_px, extended_width), pygame.SRCALPHA)
+
+    # Calculate offset to center car in the extended surface
+    width_offset = int(wheel_width * max(0.0, wheel_width_offset - 1.0))
+
+    # Draw car body at offset position
+    pygame.draw.rect(car_rect, color,
+                     (0, width_offset, car_length_px, car_width_px), 0, 3)
+
+    # Add direction triangle (adjusted for offset)
+    triangle_height = car_length_px // 4
+    pygame.draw.polygon(car_rect, (50, 50, 50), [
+        (car_length_px, width_offset + car_width_px // 2),
+        (car_length_px - triangle_height, width_offset + car_width_px // 3),
+        (car_length_px - triangle_height, width_offset + car_width_px * 2 // 3)
+    ])
+
+    # Wheel color
+    wheel_color = (30, 30, 30)
+
+    # For width positioning (account for the width_offset)
+    left_wheel_y = width_offset - (wheel_width_offset - 1.0) * wheel_width
+    right_wheel_y = width_offset + car_width_px - wheel_width + (wheel_width_offset - 1.0) * wheel_width
+
+    # For length positioning
+    rear_wheel_x = int(car_length_px * wheel_length_offset)
+    front_wheel_x = int(car_length_px * (1.0 - wheel_length_offset)) - wheel_length
+
+    # Rear wheels (fixed direction)
+    pygame.draw.rect(car_rect, wheel_color,
+                     (rear_wheel_x, left_wheel_y, wheel_length, wheel_width))
+    pygame.draw.rect(car_rect, wheel_color,
+                     (rear_wheel_x, right_wheel_y, wheel_length, wheel_width))
+
+    # Front wheels (turn based on steering)
+    # Create wheel surface to rotate
+    wheel_surf = pygame.Surface((wheel_length, wheel_width), pygame.SRCALPHA)
+    pygame.draw.rect(wheel_surf, wheel_color, (0, 0, wheel_length, wheel_width))
+
+    # Rotate the wheel surface based on steering angle (negative to match the visual direction)
+    wheel_angle = -current_steer * 30  # Scale steering to visible angle
+    rotated_wheel = pygame.transform.rotate(wheel_surf, wheel_angle)
+
+    # Position front wheels
+    wheel_rect = rotated_wheel.get_rect(center=(front_wheel_x + wheel_length // 2, left_wheel_y + wheel_width // 2))
+    car_rect.blit(rotated_wheel, wheel_rect)
+
+    wheel_rect = rotated_wheel.get_rect(center=(front_wheel_x + wheel_length // 2, right_wheel_y + wheel_width // 2))
+    car_rect.blit(rotated_wheel, wheel_rect)
+
+    # Rotate the entire car
+    rotated_car = pygame.transform.rotate(car_rect, car_angle)
+
+    # Get the new rectangle and position it at the car's position
+    car_pos_rect = rotated_car.get_rect(center=(screen_x, screen_y))
+
+    # Draw the car to the surface
+    surface.blit(rotated_car, car_pos_rect)
+
+    return color
 
 
 class Car:
@@ -71,7 +172,10 @@ class Car:
 
         return [new_x, new_y]
 
-    def reset(self):
+    def reset(self, origin=None, direction=None):
+        self.origin = self.origin if origin is None else origin
+        self.start_direction = self.start_direction if direction is None else direction
+
         self.position = self.origin
         self.speed = 0.0
         self.direction_vector = self.angular_direction_to_vector(self.start_direction)
@@ -164,89 +268,7 @@ class Car:
         return 2
 
     def draw(self, surface, transform_matrix):
-        wheel_width_offset = 1.4  # 1.0 = wheels at car edge, >1.0 = wheels outside car, <1.0 = wheels inside car
-        wheel_length_offset = 0.1  # position along car length (0.0 = front, 1.0 = back)
-
-        # Calculate car dimensions and orientation
-        car_angle = -np.arctan2(self.direction_vector[1], self.direction_vector[0]) * 180 / pi
-
-        # Apply transform to car position
-        pos_vec = np.array([self.position[0], self.position[1], 1])
-        screen_pos = transform_matrix @ pos_vec
-        screen_x, screen_y = int(screen_pos[0]), int(screen_pos[1])
-
-        # Determine car rectangle dimensions after transform
-        scale_x = np.sqrt(transform_matrix[0, 0] ** 2 + transform_matrix[0, 1] ** 2)
-        scale_y = np.sqrt(transform_matrix[1, 0] ** 2 + transform_matrix[1, 1] ** 2)
-        car_width_px = int(self.width * scale_x)
-        car_length_px = int(self.length * scale_y)
-
-        # Calculate wheel dimensions
-        wheel_width = max(3, int(car_width_px * 0.25))
-        wheel_length = max(5, int(car_length_px * 0.2))
-
-        # Calculate extended surface size to accommodate wheels that might extend beyond car body
-        extended_width = car_width_px + wheel_width * 2 * max(0.0, wheel_width_offset - 1.0)
-
-        # Create car body rectangle with extended size for wheels
-        car_rect = pygame.Surface((car_length_px, extended_width), pygame.SRCALPHA)
-
-        # Calculate offset to center car in the extended surface
-        width_offset = int(wheel_width * max(0.0, wheel_width_offset - 1.0))
-
-        # Draw car body at offset position
-        pygame.draw.rect(car_rect, self.color,
-                         (0, width_offset, car_length_px, car_width_px), 0, 3)
-
-        # Add direction triangle (adjusted for offset)
-        triangle_height = car_length_px // 4
-        pygame.draw.polygon(car_rect, (50, 50, 50), [
-            (car_length_px, width_offset + car_width_px // 2),
-            (car_length_px - triangle_height, width_offset + car_width_px // 3),
-            (car_length_px - triangle_height, width_offset + car_width_px * 2 // 3)
-        ])
-
-        # Wheel color
-        wheel_color = (30, 30, 30)
-
-        # For width positioning (account for the width_offset)
-        left_wheel_y = width_offset - (wheel_width_offset - 1.0) * wheel_width
-        right_wheel_y = width_offset + car_width_px - wheel_width + (wheel_width_offset - 1.0) * wheel_width
-
-        # For length positioning
-        rear_wheel_x = int(car_length_px * wheel_length_offset)
-        front_wheel_x = int(car_length_px * (1.0 - wheel_length_offset)) - wheel_length
-
-        # Rear wheels (fixed direction)
-        pygame.draw.rect(car_rect, wheel_color,
-                         (rear_wheel_x, left_wheel_y, wheel_length, wheel_width))
-        pygame.draw.rect(car_rect, wheel_color,
-                         (rear_wheel_x, right_wheel_y, wheel_length, wheel_width))
-
-        # Front wheels (turn based on steering)
-        # Create wheel surface to rotate
-        wheel_surf = pygame.Surface((wheel_length, wheel_width), pygame.SRCALPHA)
-        pygame.draw.rect(wheel_surf, wheel_color, (0, 0, wheel_length, wheel_width))
-
-        # Rotate the wheel surface based on steering angle (negative to match the visual direction)
-        wheel_angle = -self.current_steer * 30  # Scale steering to visible angle
-        rotated_wheel = pygame.transform.rotate(wheel_surf, wheel_angle)
-
-        # Position front wheels
-        wheel_rect = rotated_wheel.get_rect(center=(front_wheel_x + wheel_length // 2, left_wheel_y + wheel_width // 2))
-        car_rect.blit(rotated_wheel, wheel_rect)
-
-        wheel_rect = rotated_wheel.get_rect(center=(front_wheel_x + wheel_length // 2, right_wheel_y + wheel_width // 2))
-        car_rect.blit(rotated_wheel, wheel_rect)
-
-        # Rotate the entire car
-        rotated_car = pygame.transform.rotate(car_rect, car_angle)
-
-        # Get the new rectangle and position it at the car's position
-        car_pos_rect = rotated_car.get_rect(center=(screen_x, screen_y))
-
-        # Draw the car to the surface
-        surface.blit(rotated_car, car_pos_rect)
+        render_car(surface, transform_matrix, position=self.position, direction_vector=self.direction_vector, width=self.width, length=self.length, current_steer=self.current_steer, color=self.color)
 
     def calculate_aabb(self):
         """Calculate axis-aligned bounding box from corners"""

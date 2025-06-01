@@ -9,7 +9,7 @@ from ultralytics import YOLO
 
 
 class YOLODetector:
-    """YOLO detector that uses pygame screen capture for detection"""
+    """Unified YOLO detector that works with both pygame screens and numpy arrays"""
     
     def __init__(self, model_path, confidence_threshold=0.5):
         """Initialize YOLO detector"""
@@ -34,11 +34,34 @@ class YOLODetector:
             return []
         
         try:
-            # Capture pygame screen
+            # Capture pygame screen and convert to array
             screen_array = self._capture_pygame_screen(screen)
             
+            # Use the unified detection method
+            return self._run_detection(screen_array)
+            
+        except Exception as e:
+            print(f"Detection error: {e}")
+            return []
+    
+    def detect_from_array(self, image_array):
+        """Run YOLO detection on a numpy array (BGR format)"""
+        if not self.detection_active or self.model is None:
+            return []
+        
+        try:
+            # Use the unified detection method
+            return self._run_detection(image_array)
+            
+        except Exception as e:
+            print(f"Detection error: {e}")
+            return []
+    
+    def _run_detection(self, image_array):
+        """Unified detection method that works with any BGR numpy array"""
+        try:
             # Run YOLO inference
-            results = self.model(screen_array, verbose=False)
+            results = self.model(image_array, verbose=False)
             detections = results[0].boxes
             
             detected_objects = []
@@ -73,7 +96,7 @@ class YOLODetector:
             return detected_objects
             
         except Exception as e:
-            print(f"Detection error: {e}")
+            print(f"YOLO inference error: {e}")
             return []
     
     def _capture_pygame_screen(self, screen):

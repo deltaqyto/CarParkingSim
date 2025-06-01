@@ -1,7 +1,4 @@
 import os
-
-from modules.stop_conditions import omnidirectional_goal
-
 os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = "hide"
 import pygame
 import numpy as np
@@ -10,12 +7,11 @@ from Utility.console_logger import ConsoleLogger
 from Utility.raycast import Ray, ray_cast
 from Utility.collision_system import CollisionSystem
 from Objects.car import Car
-from Objects.staticObstacle import StaticObstacle
 
-from modules.environment_modules import Borders, YOLOGoalDetector, ParkingLotModule
+from modules.environment_modules import Borders
 from modules.reward_functions import GoalEndReward, TimePenalty, CollisionPenalty, DistanceReward
-from modules.stop_conditions import omnidirectional_goal, StepLimit, CollisionStop, YOLOGoalStop
-
+from modules.stop_conditions import omnidirectional_goal, StepLimit, CollisionStop
+from modules.observation_modules import ClassicalObservation
 
 
 class SimulationEnvironment:
@@ -41,7 +37,6 @@ class SimulationEnvironment:
             car_params = {}
         self.discrete = discrete
         self.car = Car(discrete_input=discrete, **car_params)
-        
         self.action_size = self.car.get_action_size()
 
         self.stop_conditions = stop_conditions
@@ -49,15 +44,9 @@ class SimulationEnvironment:
         self.reward_functions = reward_functions
         self.observation_modules = observation_modules
         if self.stop_conditions is None:
-            self.stop_conditions = [StepLimit(step_limit=200), YOLOGoalStop(goal_radius=0.8)]
-        
-        ##Yolo adaptation with ParkingLotModule Configuration setting
+            self.stop_conditions = [StepLimit(step_limit=200), omnidirectional_goal()]
         if self.environment_modules is None:
-            self.environment_modules = [
-                Borders(), 
-                ParkingLotModule(configuration=0),
-                YOLOGoalDetector(yolo_model_path="yolov8n.pt")
-    ]
+            self.environment_modules = [Borders()]
         if self.reward_functions is None:
             self.reward_functions = [GoalEndReward()]
         if self.observation_modules is None:
@@ -65,16 +54,12 @@ class SimulationEnvironment:
 
         self.collision_system = None
         self.collision_list = []
-        self.staticObstacle = None
 
         self.running = False
         self.steps = 0
         self.state = None
 
         self.reset_environment()
-
-       
-
 
         self.screen_width = screen_width
         self.screen_height = self.screen_width * self.world_aspect
@@ -86,7 +71,7 @@ class SimulationEnvironment:
                 [0, self.scale, self.screen_height / 2],  # x shear, y scale, y translate
                 [0, 0, 1]  # perspective
             ])
-    
+
         self.render = render
 
         self.vision_surface = None
@@ -108,21 +93,36 @@ class SimulationEnvironment:
         self.collision_system = CollisionSystem()
         self.state = self.get_unified_state()
 
+        self.state['environment'] = []
+        self.state['stop_conditions'] = []
+        self.state['reward_functions'] = []
         for module in self.environment_modules:
             module.reset('environment', state=self.state)
+            self.state['environment'].append(module.get_unified_state())
+
+        car_heading = self.car.get_angle()
+        self.state['obstacles'] = []
+        for module in self.state['environment']:
+            obstacle = module.get('obstacles', [])
+            self.state['obstacles'] += obstacle
+            car_heading = module.get('car_orientation', car_heading)
 
         for module in self.stop_conditions:
             module.reset('stop', state=self.state)
+            self.state['stop_conditions'].append(module.get_unified_state())
 
         for module in self.reward_functions:
             module.reset('reward', state=self.state)
+            self.state['reward_functions'].append(module.get_unified_state())
 
-        # MISSING: Add all obstacles to collision system:
-        self.state = self.get_unified_state()  # Refresh state to get obstacles
         for obstacle in self.state['obstacles']:
             self.collision_system.add_object(obstacle)
-        
-        print(f"DEBUG: Added {len(self.state['obstacles'])} obstacles to collision system")
+
+        self.car.reset(direction=car_heading)
+        self.collision_list = self.collision_system.collide_against(self.car)
+        if self.collision_list:
+            # Protect unwinnable situations
+            self.reset_environment()
 
         self.running = True
 
@@ -161,7 +161,7 @@ class SimulationEnvironment:
             angle = i * (2 * np.pi / self.rays) + self.car.get_angle()
             ray_dir = np.array([np.cos(angle), np.sin(angle)])
             ray = Ray(self.car.position, ray_dir)
-            distance, _, _ = ray_cast(ray, state['obstacles'])
+            distance, _, _ = ray_cast(ray, state['obstacles'], self.max_ray_distance)
             norm_distance = min(distance / self.max_ray_distance, 1.0)
             ray_distances.append(distance)
             ray_distances_norm.append(norm_distance)
@@ -179,9 +179,7 @@ class SimulationEnvironment:
         for module in state['stop_conditions']:
             goals += module.get('goals', [])
         if not goals:
-            print("Warning: No goals found yet - YOLO may need time to detect parking spots")
-            # Create a dummy goal to prevent crash - will be replaced when YOLO detects
-            goals = [(0, 0, 0)]  # Temporary goal at origin
+            raise ValueError(f"No goals found in stop condition unified states")
 
         # Create rotation matrix for transforming to car's frame
         cos_angle = np.cos(-car_heading)  # Negative angle to rotate world to car frame
@@ -424,54 +422,3 @@ class SimulationEnvironment:
                f"\n]")
 
         return out
-    
-    def place_obstacle_near_goal(self, offset=(1.0, 0.0), parking_angle=0, color=None):
-        """
-        Places a car-like obstacle at a fixed offset from the first goal.
-        
-        Args:
-            offset: (x, y) offset from goal position
-            parking_angle: angle in degrees for the parked car (0 = facing right)
-            color: color tuple for the obstacle (defaults to blue if None)
-        """
-        goals = []
-        for module in self.state['stop_conditions']:
-            goals += module.get('goals', [])
-        if not goals:
-            raise ValueError("No goals found to place obstacle near")
-
-        goal_x, goal_y, goal_angle = goals[0]  # Get first goal
-        obs_x = goal_x + offset[0]
-        obs_y = goal_y + offset[1]
-
-        # If no color specified, choose a random color that's not red
-        if color is None:
-            colors = [
-                (0, 100, 200),  # Blue
-                (0, 150, 0),    # Green
-                (100, 100, 0),  # Dark yellow
-                (100, 0, 100),  # Purple
-                (0, 150, 150),  # Teal
-                (50, 50, 50),   # Dark gray
-                (100, 100, 100) # Light gray
-            ]
-            color = random.choice(colors)
-        
-        # Create the obstacle
-        static_obs = StaticObstacle(
-            position=(obs_x, obs_y),
-            direction=parking_angle,
-            width=2.0,
-            length=4.7,
-            color=color
-        )
-        
-        # Add to environment modules
-        self.environment_modules.append(static_obs)
-        
-        # Update state
-        self.state = self.get_unified_state()
-        
-        return static_obs
-
-

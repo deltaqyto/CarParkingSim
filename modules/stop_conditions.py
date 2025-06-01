@@ -130,38 +130,49 @@ import numpy as np
 
 
 class YOLOGoalStop(GenericStop):
-    def __init__(self, goal_radius=0.4):  
+    """
+    YOLO Goal Stop that provides placeholder goals during initialization
+    """
+    def __init__(self, goal_radius=1.5):
         super().__init__()
         self.goal_radius = goal_radius
         self.goals_from_yolo = []
+        self.placeholder_provided = False
 
     def reset(self, mode, state=None):
-        # Extract goals from YOLO detector in environment modules
+        """Reset and provide initial placeholder goals"""
         self.goals_from_yolo = []
+        self.placeholder_provided = True  # Always provide placeholder initially
         
+        # Try to get real YOLO goals if available
         if state and 'environment' in state:
             for module_state in state['environment']:
-                if module_state.get('name') == 'YOLOGoals':
-                    # Get the formatted goals (x, y, angle) from YOLO detector
+                if hasattr(module_state, 'get') and module_state.get('name') == 'YOLOGoals':
                     yolo_goals = module_state.get('goals', [])
-                    self.goals_from_yolo = yolo_goals
-                    print(f"YOLOGoalStop: Found {len(yolo_goals)} YOLO goals")
+                    if yolo_goals:
+                        self.goals_from_yolo = yolo_goals
+                        self.placeholder_provided = False
+                        print(f"YOLOGoalStop: Found {len(yolo_goals)} YOLO goals during reset")
                     break
         
-        # Don't raise error if no goals found initially - YOLO needs time to detect
         if not self.goals_from_yolo:
-            print("YOLOGoalStop: No YOLO goals found initially, will wait for detection")
+            print("YOLOGoalStop: Providing placeholder goals, waiting for YOLO detection...")
 
     def check_stop(self, state):
-        # Update goals from current state (in case YOLO detected new ones)
+        """Check if car has reached any goal"""
+        # Update goals from current state
         self._update_goals_from_state(state)
         
+        # If we only have placeholder goals, don't stop for them
+        if self.placeholder_provided and not self.goals_from_yolo:
+            return False, ""
+        
         if not self.goals_from_yolo:
-            return False, ""  # No goals yet, keep running
+            return False, ""
         
         car_position = np.array(state['car']['position'])
         
-        # Check if car is close enough to any YOLO goal
+        # Check distance to each detected goal
         for goal_x, goal_y, goal_angle in self.goals_from_yolo:
             goal_position = np.array([goal_x, goal_y])
             distance = np.linalg.norm(car_position - goal_position)
@@ -172,37 +183,58 @@ class YOLOGoalStop(GenericStop):
         return False, ""
 
     def _update_goals_from_state(self, state):
-        """Update goals from current state in case YOLO detected new ones"""
-        if state and 'environment' in state:
-            for module_state in state['environment']:
-                if module_state.get('name') == 'YOLOGoals':
-                    new_goals = module_state.get('goals', [])
-                    if len(new_goals) != len(self.goals_from_yolo):
-                        self.goals_from_yolo = new_goals
-                        print(f"YOLOGoalStop: Updated to {len(new_goals)} YOLO goals")
-                    break
+        """Update goals from current state"""
+        if not state or 'environment' not in state:
+            return
+            
+        for module_state in state['environment']:
+            if hasattr(module_state, 'get') and module_state.get('name') == 'YOLOGoals':
+                new_goals = module_state.get('goals', [])
+                if new_goals and (not self.goals_from_yolo or len(new_goals) != len(self.goals_from_yolo)):
+                    self.goals_from_yolo = new_goals
+                    self.placeholder_provided = False  # Real goals found
+                    print(f"YOLOGoalStop: Updated to {len(new_goals)} YOLO goals")
+                break
 
     def render(self, screen, transform_matrix):
-        # Render the YOLO goals as circles
-        for goal_x, goal_y, goal_angle in self.goals_from_yolo:
-            # Transform goal position to screen coordinates
-            goal_screen = transform_matrix @ np.array([goal_x, goal_y, 1])
-            goal_screen_pos = (int(goal_screen[0]), int(goal_screen[1]))
-            
-            # Calculate radius in screen coordinates - make even smaller
-            radius_world = self.goal_radius * 0.5  # Make visual radius even smaller
-            radius_screen = max(3, int(radius_world * transform_matrix[0, 0]))  # Minimum 3 pixels
-            
-            # Draw goal circle (green with red border) - smaller
-            pygame.draw.circle(screen, (0, 255, 0), goal_screen_pos, radius_screen, 2)
-            pygame.draw.circle(screen, (255, 0, 0), goal_screen_pos, radius_screen, 1)
+        """Render YOLO goals"""
+        # Only render real goals, not placeholders
+        if not self.placeholder_provided:
+            for goal_x, goal_y, goal_angle in self.goals_from_yolo:
+                goal_screen = transform_matrix @ np.array([goal_x, goal_y, 1])
+                goal_screen_pos = (int(goal_screen[0]), int(goal_screen[1]))
+                
+                radius_world = self.goal_radius * 0.7
+                radius_screen = max(4, int(radius_world * transform_matrix[0, 0]))
+                
+                # Draw goal circle (green with red border)
+                pygame.draw.circle(screen, (0, 255, 0), goal_screen_pos, radius_screen, 2)
+                pygame.draw.circle(screen, (255, 0, 0), goal_screen_pos, radius_screen, 1)
 
     def get_digest(self):
-        return f"YOLOGoalStop(goal_radius={self.goal_radius}, goals_count={len(self.goals_from_yolo)})"
+        return f"FixedYOLOGoalStop(goal_radius={self.goal_radius}, goals_count={len(self.goals_from_yolo)})"
 
     def get_unified_state(self):
-        return {
-            'name': 'YOLOGoalStop',
-            'goals': self.goals_from_yolo,  # Provide goals for the simulation
-            'goal_radius': self.goal_radius
-        }
+        """Always provide goals - use placeholder if none detected yet"""
+        if self.goals_from_yolo:
+            return {
+                'name': 'YOLOGoalStop',
+                'goals': self.goals_from_yolo,
+                'goal_radius': self.goal_radius
+            }
+        else:
+            # Provide placeholder goals that won't trigger winning
+            # Place them far from typical car spawn locations
+            placeholder_goals = [
+                (0, 0, 0),      # Center (safe default)
+                (25, 20, 0),    # Corner positions (far from typical spawns)
+                (-25, 20, 0),
+                (25, -20, 0),
+                (-25, -20, 0)
+            ]
+            return {
+                'name': 'YOLOGoalStop',
+                'goals': placeholder_goals,
+                'goal_radius': self.goal_radius,
+                'placeholder': True  # Flag indicating these are temporary
+            }
