@@ -59,6 +59,8 @@ class SimulationEnvironment:
         self.steps = 0
         self.state = None
 
+        self.render = render
+        self.vision_surface = None
         self.reset_environment()
 
         self.screen_width = screen_width
@@ -72,9 +74,6 @@ class SimulationEnvironment:
                 [0, 0, 1]  # perspective
             ])
 
-        self.render = render
-
-        self.vision_surface = None
         if self.generate_vision:
             pygame.init()
             self.vision_surface = pygame.surface.Surface((self.screen_width, self.screen_height))
@@ -136,6 +135,7 @@ class SimulationEnvironment:
 
         state = {
             'steps': self.steps,
+            'rendering': self.render,
             'car': self.car.get_unified_state(),
             'car_obj': self.car,
             'collision_module': self.collision_system,
