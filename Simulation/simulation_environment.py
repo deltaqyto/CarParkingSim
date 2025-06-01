@@ -61,7 +61,6 @@ class SimulationEnvironment:
 
         self.render = render
         self.vision_surface = None
-        self.reset_environment()
 
         self.screen_width = screen_width
         self.screen_height = self.screen_width * self.world_aspect
@@ -69,10 +68,10 @@ class SimulationEnvironment:
         self.scale = min(self.screen_width / self.world_size[0],
                          self.screen_height / self.world_size[1])
         self.transform = np.array([
-                [self.scale, 0, self.screen_width / 2],  # x scale, y shear, x translate
-                [0, self.scale, self.screen_height / 2],  # x shear, y scale, y translate
-                [0, 0, 1]  # perspective
-            ])
+            [self.scale, 0, self.screen_width / 2],  # x scale, y shear, x translate
+            [0, self.scale, self.screen_height / 2],  # x shear, y scale, y translate
+            [0, 0, 1]  # perspective
+        ])
 
         if self.generate_vision:
             pygame.init()
@@ -85,6 +84,9 @@ class SimulationEnvironment:
             pygame.display.set_caption("Car Simulation Environment")
             self.clock = pygame.time.Clock()
             self.font = pygame.font.SysFont(None, 36)
+
+        self.reset_environment()
+
 
     def reset_environment(self):
         self.car.reset()
@@ -151,6 +153,7 @@ class SimulationEnvironment:
             'raycasts': None,
             'raycasts_true': None,
             'closest_goal': None,
+            'screen_size': (self.screen_width, self.screen_height),
         }
 
         # Cast rays and get distances
