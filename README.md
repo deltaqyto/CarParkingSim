@@ -29,10 +29,6 @@ Simply run any of the five start programs:
 Use arrow keys and 'r' to regenerate the environment. When run, the configured environment will appear and begin rendering. 
 It will keep going until closed.
 
-#### Single Training  
-`start_single_learning.py` - Train a fresh model on one environment.\
-You can opt to load an existing model, or from scratch. See the section on model training for details on what to look for.
-
 #### Curriculum Training
 `start_curriculum_learning.py` - Train a fresh model on successive environments with increasing difficulty.\
 You can opt to start from an existing model, or from scratch. Training a curriculum will take longer than a single environment. See the section on model training for details on what to look for.
@@ -46,6 +42,9 @@ The console will provide details on model loss. Once this drops below 0.005, it 
 #### Model Testing
 `start_test_model.py` - See a pre-trained model navigate the environment, or evaluate trained models with statistics\
 Turn off rendering on line 6 to speed up evaluation if you just want the performance figures.
+
+#### Visual Monitor
+`start_visual_monitor.py` - Watch a model as it trains across multiple environments. Useful when debugging issues
 
 Training and testing will ask for a model 'code' (the model ID). Models appear in the models folder.
 Type the code `eg: 'models/td3_STQ4' -> STQ4`.\
