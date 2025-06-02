@@ -114,7 +114,7 @@ class VisionRaycastObservation(GenericObservation):
         # print(f"Loading vision model: {best_model_path}")
 
         # Load the model
-        cnn = RaycastResNet().to(self.device)
+        cnn = RaycastResNet(output_dim=self.ray_count).to(self.device)
         checkpoint = torch.load(best_model_path, map_location=self.device, weights_only=False)
         cnn.load_state_dict(checkpoint['model_state_dict'])
         cnn.eval()
