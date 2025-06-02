@@ -1,4 +1,4 @@
-from modules.generic_modules import GenericStop, GenericReward
+from modules.generic_modules import GenericStop, GenericReward, GenericEnvironment
 from AI.YOLO.yolo_detect import YOLODetector
 import pygame
 import numpy as np
@@ -167,11 +167,6 @@ class YOLOGoalStop(GenericStop):
             pygame.draw.circle(screen, (0, 255, 0), goal_screen_pos, radius_screen, 2)
             pygame.draw.circle(screen, (255, 0, 0), goal_screen_pos, radius_screen, 1)
 
-            # Draw confidence text
-            font = pygame.font.Font(None, 24)
-            confidence_text = font.render(f"{goal['confidence']:.2f}", True, (255, 255, 255))
-            text_pos = (goal_screen_pos[0] - 15, goal_screen_pos[1] - 30)
-            screen.blit(confidence_text, text_pos)
 
     def get_digest(self):
         return f"YOLOGoalStop(model_name={self.model_name}, confidence_threshold={self.confidence_threshold}, goal_radius={self.goal_radius})"
@@ -207,15 +202,14 @@ class YOLOGoalStop(GenericStop):
 
 
 class SmoothDistanceReward(GenericReward):
-    def __init__(self, reward_factor=-1 / 6, continuous_scale=0.05, low_distance_reward=3.0):
+    def __init__(self, reward_factor=-1 / 6, continuous_scale=0.05):
         super().__init__()
         self.reward_factor = reward_factor
         self.continuous_scale = continuous_scale
-        self.low_distance_reward = low_distance_reward
         self.last_distance = None
 
     def get_digest(self):
-        return f'SmoothDistanceReward(factor={self.reward_factor}, continuous_scale={self.continuous_scale}, low_distance_reward={self.low_distance_reward})'
+        return f'SmoothDistanceReward(factor={self.reward_factor}, continuous_scale={self.continuous_scale})'
 
     def get_reward(self, state):
         # Get goal distance
@@ -230,11 +224,6 @@ class SmoothDistanceReward(GenericReward):
         if self.last_distance is not None and self.last_distance != float('inf'):
             distance_improvement = self.last_distance - goal_distance
             reward = distance_improvement * self.continuous_scale
-
-            # Extra bonus for being very close to goals
-            if goal_distance < self.low_distance_reward:
-                proximity_bonus = (self.low_distance_reward - goal_distance) / self.low_distance_reward * 0.02
-                reward += proximity_bonus
 
         self.last_distance = goal_distance
         return 'SmoothDistanceReward', reward
@@ -320,3 +309,18 @@ class SmoothDrivingReward(GenericReward):
         speed_reward = max(0, self.optimal_speed - abs(speed - self.optimal_speed)) * self.speed_reward_scale
 
         return 'Smooth Driving', steering_penalty + speed_reward
+
+
+class IncreasingTimePenalty(GenericReward):
+    def __init__(self, reward=-0.01):
+        super().__init__()
+        
+        self.reward = reward
+
+    def get_digest(self):
+        return f'IncreasingTimePenalty(reward={self.reward})'
+
+    def get_reward(self, state):
+        step = state['steps']
+        reward = step*self.reward
+        return 'Increasing Time Penalty', reward

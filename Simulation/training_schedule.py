@@ -70,33 +70,33 @@ class BasicTrainingSchedule(GenericTrainingSchedule):
 
 
 class YOLOParkingSchedule(GenericTrainingSchedule):
-    def __init__(self):
+    def __init__(self, render=False):
         super().__init__()
         # Import YOLO environment
         from modules.custom_environments import get_yolo_env
         
         # Progressive YOLO parking difficulty - adjust goal radius for curriculum learning
         self.environments = [
-            get_yolo_env(goal_size=2.5, angle_tolerance=pi/2, render=False)   # Stage 1: Large goal, any angle
-            #get_yolo_env(goal_size=2.0, angle_tolerance=pi/4, render=True),   # Stage 2: Medium goal, loose angle
-            #get_yolo_env(goal_size=1.5, angle_tolerance=pi/6, render=True),   # Stage 3: Smaller goal, tighter angle
-            #get_yolo_env(goal_size=1.0, angle_tolerance=pi/8, render=True)    # Stage 4: Precise parking
+            get_yolo_env(goal_size=2.5, angle_tolerance=pi/2, render=render, vision_model=None)   # Stage 1: Large goal, any angle
+            #get_yolo_env(goal_size=2.0, angle_tolerance=pi/4, render=render),   # Stage 2: Medium goal, loose angle
+            #get_yolo_env(goal_size=1.5, angle_tolerance=pi/6, render=render),   # Stage 3: Smaller goal, tighter angle
+            #get_yolo_env(goal_size=1.0, angle_tolerance=pi/8, render=render)    # Stage 4: Precise parking
         ]
 
         # YOLO-optimized training parameters
         base_params = {
-            'num_envs': min(3, max(1, 3)),  # Slightly more envs for YOLO
+            'num_envs': 8,  # Slightly more envs for YOLO
             'action_dim': 2,  # throttle, steering
             'batch_size': 256,
             'total_timesteps': 4_000_000,  # More timesteps for YOLO navigation
             'save_freq': 25000,
-            'eval_episodes': 15,  # More evaluation episodes
+            'eval_episodes': 10,  # More evaluation episodes
             'seed': 42,
             'exploration_noise': 0.15,  # Higher exploration for parking
-            'start_timesteps': 40000,  # More random exploration for YOLO environment
+            'start_timesteps': 25000,  # More random exploration for YOLO environment
             'buffer_size': 1_500_000,  # Larger buffer for complex parking scenarios
             'learning_rate': 2e-4,  # Slightly lower LR for stability
-            'net_size': [512, 256],  # Larger network for complex navigation
+            'net_size': [400, 300],  # Larger network for complex navigation
         }
         
         # Progressive parameter adjustments for each stage

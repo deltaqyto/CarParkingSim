@@ -162,3 +162,67 @@ class CollisionStop(GenericStop):
         if state['collisions']:
             return True, 'Collision'
         return False, 'Nothing'
+    
+class GoalStop(GenericStop):
+    def __init__(self):
+        super().__init__()
+
+    def get_digest(self):
+        return "GoalStop()"
+
+    def get_unified_state(self):
+        return {}
+
+    def check_stop(self, state):
+        position = state['car']['position']
+        angle = state['car']['angle']
+
+        # Find all goal modules in the environment
+        for env_module in state['environment']:
+            if env_module.get('name') == 'goal_module':
+                # Crash with clear messages if required data is missing
+                if 'goals' not in env_module:
+                    raise KeyError(f"GoalStop: goal_module missing required 'goals' key. Available keys: {list(env_module.keys())}")
+
+                if 'goal_size' not in env_module:
+                    raise KeyError(f"GoalStop: goal_module missing required 'goal_size' key. Available keys: {list(env_module.keys())}")
+
+                if 'angle_tolerance' not in env_module:
+                    raise KeyError(f"GoalStop: goal_module missing required 'angle_tolerance' key. Available keys: {list(env_module.keys())}")
+
+                if 'bidirectional' not in env_module:
+                    raise KeyError(f"GoalStop: goal_module missing required 'bidirectional' key. Available keys: {list(env_module.keys())}")
+
+                goals = env_module['goals']
+                goal_size = env_module['goal_size']
+                angle_tolerance = env_module['angle_tolerance']
+                bidirectional = env_module['bidirectional']
+
+                # Check each goal in this module
+                for i, goal in enumerate(goals):
+                    if len(goal) < 3:
+                        raise ValueError(f"GoalStop: goal[{i}] has insufficient data. Expected [x, y, angle], got {goal}")
+
+                    goal_position = goal[:2]  # [x, y]
+                    goal_angle = goal[2]  # angle
+
+                    # Check distance to goal
+                    dist = sqrt((position[0] - goal_position[0]) ** 2 + (position[1] - goal_position[1]) ** 2)
+                    if dist > goal_size:
+                        continue  # Too far from this goal, check next one
+
+                    # Check angle alignment
+                    angle_diff = min((angle - goal_angle) % (2 * pi), (goal_angle - angle) % (2 * pi))
+
+                    # If bidirectional, also check the opposite direction
+                    if bidirectional:
+                        opposite_goal = (goal_angle + pi) % (2 * pi)
+                        opposite_diff = min((angle - opposite_goal) % (2 * pi), (opposite_goal - angle) % (2 * pi))
+                        angle_diff = min(angle_diff, opposite_diff)
+
+                    # Check if within angle tolerance
+                    if angle_diff < angle_tolerance:
+                        return True, 'Goal Hit'
+
+        return False, 'Nothing'
+

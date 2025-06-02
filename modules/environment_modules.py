@@ -39,7 +39,7 @@ class Borders(GenericEnvironment):
 ## =============== Credit: Nikhil & Jack ==================
 
 class ParkingLotModule(GenericEnvironment):
-    def __init__(self, wall_width=2, configuration=1):
+    def __init__(self, wall_width=2, configuration=1, generate_goals=True, goal_radius = 0.8):
         super().__init__()
         self.configuration = configuration
         self.wall_width = wall_width
@@ -48,6 +48,9 @@ class ParkingLotModule(GenericEnvironment):
         self.collision_rects = []
         self.static_cars = []
         self.obstacles = []
+        self.goals = []
+        self.generate_goals = generate_goals
+        self.goal_radius =goal_radius 
 
     def reset(self, mode, state=None):
         # Environment setup
@@ -55,6 +58,7 @@ class ParkingLotModule(GenericEnvironment):
         self.world_width = world_size[0]
         self.world_height = world_size[1]
         self.collision_rects = []
+        self.goals = []
 
         # Available colors for cars
         colors = [(240, 230, 0), (0, 255, 0), (0, 233, 255)]
@@ -81,6 +85,7 @@ class ParkingLotModule(GenericEnvironment):
             self.obstacles = []
             for pos in obstacle_positions:
                 self.obstacles.append(RectObstacle(pos, [4.7, 2.5]))  # Wider obstacles
+                self.goals.append((*pos, 0))
 
             self.static_cars = []
             for pos in car_positions:
@@ -112,6 +117,7 @@ class ParkingLotModule(GenericEnvironment):
             self.obstacles = []
             for pos in obstacle_positions:
                 self.obstacles.append(RectObstacle(pos, [4.7, 2.5], angle=90))  # Wider obstacles. Also, this expects radians
+                self.goals.append((*pos, 0))
 
             self.static_cars = []
             for pos in car_positions:
@@ -130,7 +136,7 @@ class ParkingLotModule(GenericEnvironment):
 
     def get_digest(self):  # The digest is kinda like an instruction manual so anyone else can put together the same environment. Here, you'd need to put in the configuration parameter from up top
         return f"ParkingLotModule(world_width={self.world_width}, world_height={self.world_height}, "\
-               f"wall_width={self.wall_width})"  # ClassName(parameter={parameter} ... )
+               f"wall_width={self.wall_width}, generate_goals = {self.generate_goals})"  # ClassName(parameter={parameter} ... )
 
     def get_unified_state(self):
         # Start with walls (always collidable)
@@ -152,9 +158,17 @@ class ParkingLotModule(GenericEnvironment):
         #print(f"DEBUG: ParkingLotModule returning {len(all_obstacles)} obstacles")
 
             # DON'T add self.obstacles - these are parking spaces, not collision objects
-
+        if not self.goals:
+            self.goals = [(1000,1000,0)]
         return {
+            'name' : 'goal_module',
             'obstacles': all_obstacles,      # Walls + Cars (collidable)
             'static_cars': self.static_cars,
-            'static_obstacles': self.obstacles  # Parking spaces (visual only)
+            'static_obstacles': self.obstacles,  # Parking spaces (visual only)
+            'goals' : self.goals if self.generate_goals else [],
+            'goal_size' : self.goal_radius,
+            'angle_tolerance' : 999,
+            'bidirectional' : False
         }
+
+

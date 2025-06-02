@@ -1,10 +1,10 @@
 from Simulation.environments import load_env
 from modules.environment_modules import Borders, ParkingLotModule
 from modules.reward_functions import GoalEndReward, TimePenalty, CollisionPenalty
-from modules.stop_conditions import StepLimit, CollisionStop, bidirectional_goal
+from modules.stop_conditions import StepLimit, CollisionStop, GoalStop
 from modules.observation_modules import ClassicalObservation
 from modules.module_reward_display import RewardDisplayModule
-from modules.YOLO_modules import YOLOGoalStop, SmoothDistanceReward, CarProximityPenalty
+from modules.YOLO_modules import YOLOGoalStop, SmoothDistanceReward, CarProximityPenalty, IncreasingTimePenalty
 
 
 def get_yolo_env(render=False, goal_size=0.8, angle_tolerance=999, vision_model="DET_001"):
@@ -15,7 +15,7 @@ def get_yolo_env(render=False, goal_size=0.8, angle_tolerance=999, vision_model=
     # YOLO-enabled environment modulesS
     environment_modules = [
         Borders(),
-        ParkingLotModule(configuration=0),
+        ParkingLotModule(configuration=0, generate_goals=True, goal_radius = 0.8),
     ]
 
     # Use improved YOLO stop condition that handles timing gracefully
@@ -26,15 +26,14 @@ def get_yolo_env(render=False, goal_size=0.8, angle_tolerance=999, vision_model=
     if vision_model is not None:
         stop_conditions.append(YOLOGoalStop(goal_radius=goal_size, model_name=vision_model))
     else:
-        stop_conditions.append(bidirectional_goal(region=[-world_width / 2 * 0.8, world_width / 2 * 0.8, -world_height / 2 * 0.8, world_height / 2 * 0.8], goal_size=goal_size, angle_tolerance=angle_tolerance))
+        stop_conditions.append(GoalStop())
 
-    # YOLO-optimized rewards
+    #YOLO-optimized rewards
     reward_functions = [
         GoalEndReward(reward=100),
-        TimePenalty(reward=-0.01),
+        IncreasingTimePenalty(reward=-0.0001),
         CollisionPenalty(reward=-30),
         SmoothDistanceReward(continuous_scale=0.8),
-        CarProximityPenalty(penalty_distance=2.5, max_penalty=-0.03, exploration_bonus=0.005),
         RewardDisplayModule()
 
     ]
