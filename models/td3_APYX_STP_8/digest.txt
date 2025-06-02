@@ -1,0 +1,30 @@
+SimulationEnvironment(render=False, discrete=False, screen_size=[800, 600.0], world_size=[90, 67.5], world_aspect=0.75, delta_time=0.4, substeps=2, rays=24, max_ray_distance=10, generate_vision=False): [
+  reward_modules: [
+    GoalEndReward(reward=20)
+    TimePenalty(reward=-0.01)
+    CollisionPenalty(reward=-1)
+    DistanceReward(reward_factor=-0.16666666666666666)
+    ObstacleProximityReward(reward_factor=-0.02, danger_threshold=4.7, safety_margin=2.0)
+  ]
+  environment_modules: [
+    EnvironmentSelector(environment_type=branching_lot, debug=False)
+    LotEnvironmentPlanner(main_road_width=10, parking_row_depth=5, margin=2, curb_enabled=True, curb_depth=0, curb_thickness=1.0, debug=False)
+    RoadRenderer(debug=False)
+    ParkedCarRow(car_width=2, car_length=4.7, parking_spot_width=4, vacancy_rate=0.3, min_missing=1, force_first_car=False, debug=False)
+    GoalSelector(goal_size=0.7, angle_tolerance=0.31, bidirectional=True, num_goals=1, debug=False)
+    BarrierSpawner(barrier_distance=3.0, spawn_probability=0.6, barrier_width=40, barrier_thickness=1, debug=False)
+    CurbRenderer(debug=False)
+    Borders(world_width=90, world_height=67.5, wall_width=2)
+  ]
+  stop conditions: [
+    StepLimit(step_limit=200)
+    CollisionStop()
+    GoalStop()
+  ]
+  observation modules: [
+    ClassicalObservation(rescale_lidar=False, lidar_noise=0.0)
+  ]
+  car: Car(position=[0, 0], rotation=[6.123233995736766e-17, 1.0], color=(255, 0, 0), width=2, length=4.7, speed_limit=5.5, steering_limit=1, throttle_limit=1, drag_coefficient=1, turn_radius=7, acceleration=3, steering_speed=0.5,discrete=False)
+]
+
+params({'num_envs': 14, 'action_dim': 2, 'batch_size': 512, 'total_timesteps': 2000000, 'save_freq': 20000, 'eval_episodes': 10, 'seed': 41, 'exploration_noise': 0.15, 'start_timesteps': 25000, 'buffer_size': 1000000, 'learning_rate': 0.0003, 'net_size': [400, 300]})

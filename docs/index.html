@@ -234,6 +234,59 @@
             color: #b0b0b0;
         }
 
+        .results-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 2rem;
+            margin-bottom: 3rem;
+        }
+
+        .stat-card {
+            background: #242454;
+            padding: 2rem;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+            text-align: center;
+            border: 1px solid rgba(102, 126, 234, 0.2);
+            transition: transform 0.3s ease;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-5px);
+        }
+
+        .stat-number {
+            font-size: 3rem;
+            font-weight: bold;
+            color: #667eea;
+            margin-bottom: 0.5rem;
+        }
+
+        .stat-label {
+            font-size: 1.1rem;
+            color: #e0e0e0;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+        }
+
+        .stat-description {
+            font-size: 0.9rem;
+            color: #b0b0b0;
+        }
+
+        .results-image {
+            text-align: center;
+            margin-top: 2rem;
+        }
+
+        .results-image img {
+            max-width: 100%;
+            height: auto;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(102, 126, 234, 0.3);
+        }
+
         /* Team Section */
         .team-grid {
             display: grid;
@@ -520,6 +573,33 @@
                             <p>Process sensor data for agent input</p>
                         </div>
                     </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Results Section -->
+        <section id="results">
+            <div class="container">
+                <div class="section-header">
+                    <h2>Performance Results</h2>
+                    <p>APEX demonstrates strong performance in the 90 degree parking task</p>
+                </div>
+
+                <div class="results-stats">
+                    <div class="stat-card">
+                        <div class="stat-number">98%</div>
+                        <div class="stat-label">Success Rate</div>
+                        <div class="stat-description">LiDAR-based navigation</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number">75%</div>
+                        <div class="stat-label">Success Rate</div>
+                        <div class="stat-description">Vision-based tracking</div>
+                    </div>
+                </div>
+
+                <div class="results-image">
+                    <img src="results.png" alt="APEX Performance Results">
                 </div>
             </div>
         </section>
