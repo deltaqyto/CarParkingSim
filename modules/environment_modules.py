@@ -129,8 +129,7 @@ class ParkingLotModule(GenericEnvironment):
             obstacle.draw(screen, transform_matrix)
 
     def get_digest(self):  # The digest is kinda like an instruction manual so anyone else can put together the same environment. Here, you'd need to put in the configuration parameter from up top
-        return f"ParkingLotModule(world_width={self.world_width}, world_height={self.world_height}, "\
-               f"wall_width={self.wall_width})"  # ClassName(parameter={parameter} ... )
+        return f"ParkingLotModule(world_width={self.world_width},  wall_width={self.wall_width}, configuration={self.configuration})"  # ClassName(parameter={parameter} ... )
 
     def get_unified_state(self):
         # Start with walls (always collidable)
