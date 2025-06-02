@@ -268,6 +268,14 @@
             color: white;
             font-size: 2rem;
             font-weight: bold;
+            overflow: hidden;
+        }
+
+        .member-avatar img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            border-radius: 50%;
         }
 
         .member-name {
@@ -328,6 +336,32 @@
 
         .footer-links a:hover {
             color: #667eea;
+        }
+
+         .video-container {
+            max-width: 800px;
+            margin: 0 auto;
+            text-align: center;
+        }
+
+        .video-embed {
+            position: relative;
+            width: 100%;
+            height: 0;
+            padding-bottom: 56.25%; /* 16:9 aspect ratio */
+            border-radius: 15px;
+            overflow: hidden;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(102, 126, 234, 0.3);
+        }
+
+        .video-embed iframe {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            border: none;
         }
 
         /* Animations */
@@ -501,7 +535,9 @@
                 <div>
                     <div class="team-grid">
                         <div class="team-member">
-                            <div class="member-avatar">A</div>
+                            <div class="member-avatar">
+                                <img src="delta_profile.jpg" alt="A">
+                            </div>
                             <div class="member-name">Aditya Sriram</div>
                             <div class="member-role">APEX framework development</div>
                         </div>
@@ -513,14 +549,14 @@
                         <div class="team-member">
                             <div class="member-avatar">S</div>
                             <div class="member-name">Sachin Hanel</div>
-                            <div class="member-role">-</div>
+                            <div class="member-role">Reward Function Development</div>
                         </div>
                     </div>
                     <div class="team-grid">
                         <div class="team-member">
                             <div class="member-avatar">A</div>
                             <div class="member-name">Arya Nooralizadeh</div>
-                            <div class="member-role">-</div>
+                            <div class="member-role">Document Support</div>
                         </div>
                         <div class="team-member">
                             <div class="member-avatar">N</div>
@@ -541,10 +577,12 @@
                 </div>
 
                 <div class="video-container">
-                    <div class="video-placeholder">
-                        <h3>Demo Video WIP</h3>
-                        <p>DEMO WIP</p>
-                        <p style="margin-top: 1rem; opacity: 0.8;">DEMO WIP</p>
+                    <div class="video-embed">
+                        <iframe src="https://www.youtube.com/embed/2a4NYLSWKmM"
+                                title="APEX Reinforcement Learning Car Navigation Demo"
+                                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                                allowfullscreen>
+                        </iframe>
                     </div>
                 </div>
             </div>
