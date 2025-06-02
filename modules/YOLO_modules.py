@@ -71,7 +71,7 @@ class YOLOGoalStop(GenericStop):
             distance = np.linalg.norm(car_position - goal_position)
 
             if distance <= self.goal_radius:
-                return True, f"Goal Hit (confidence: {goal['confidence']:.2f})"
+                return True, f"Goal Hit"
 
         return False, ""
 
@@ -202,14 +202,19 @@ class YOLOGoalStop(GenericStop):
 
 
 class SmoothDistanceReward(GenericReward):
-    def __init__(self, reward_factor=-1 / 6, continuous_scale=0.05):
+    def __init__(self, reward_factor=-1 / 6, continuous_scale=0.05, low_distance_reward=3.0, 
+                 stagnation_penalty=-0.02, stagnation_threshold=30):
         super().__init__()
         self.reward_factor = reward_factor
         self.continuous_scale = continuous_scale
+        self.low_distance_reward = low_distance_reward
+        self.stagnation_penalty = stagnation_penalty
+        self.stagnation_threshold = stagnation_threshold
         self.last_distance = None
+        self.close_distance_steps = 0  # Track how long we've been close
 
     def get_digest(self):
-        return f'SmoothDistanceReward(factor={self.reward_factor}, continuous_scale={self.continuous_scale})'
+        return f'SmoothDistanceReward(factor={self.reward_factor}, continuous_scale={self.continuous_scale}, stagnation_penalty={self.stagnation_penalty})'
 
     def get_reward(self, state):
         # Get goal distance
@@ -217,16 +222,35 @@ class SmoothDistanceReward(GenericReward):
         goal_distance = closest_goal_data.get('distance', float('inf'))
 
         if goal_distance == float('inf'):
+            self.close_distance_steps = 0
             return 'SmoothDistanceReward', 0
+
+        # Track how long we've been close to goal without reaching it
+        if goal_distance < 10.0:  # 10 METRES is pretty close still
+            self.close_distance_steps += 1
+        else:
+            self.close_distance_steps = 0
 
         # Continuous feedback - reward for getting closer to goals
         reward = 0
         if self.last_distance is not None and self.last_distance != float('inf'):
             distance_improvement = self.last_distance - goal_distance
             reward = distance_improvement * self.continuous_scale
+            
+            # Cap the reward change to prevent massive spikes
+            max_reward_change = 0.2
+            reward = max(-max_reward_change, min(max_reward_change, reward))
+
+            # REMOVED: proximity bonus for being very close (was encouraging hovering)
+
+        # PENALTY for staying close too long without touching goal
+        if self.close_distance_steps > self.stagnation_threshold:
+            stagnation_multiplier = (self.close_distance_steps - self.stagnation_threshold) / 20
+            stagnation_penalty = self.stagnation_penalty * stagnation_multiplier
+            reward += stagnation_penalty
 
         self.last_distance = goal_distance
-        return 'SmoothDistanceReward', reward
+        return 'SmoothDistanceReward', reward 
 
 
 class CarProximityPenalty(GenericReward):
@@ -274,16 +298,12 @@ class CarProximityPenalty(GenericReward):
                 current_yolo_goals = len(env_module.get('parking_goals', []))
                 break
 
-        # discovery_bonus = max(0, current_yolo_goals - self.goals_found_last_step) * 5.0
-        # self.goals_found_last_step = current_yolo_goals
-
         # Exploration reward when no goals found
         exploration_reward = 0
         if current_yolo_goals == 0:
             car_speed = abs(state['car']['speed'])
             exploration_reward = min(car_speed * self.exploration_bonus, 0.01)
 
-        # total_reward = proximity_penalty + discovery_bonus + exploration_reward
         total_reward = proximity_penalty + exploration_reward
         return 'Car Proximity', total_reward
 
@@ -312,15 +332,16 @@ class SmoothDrivingReward(GenericReward):
 
 
 class IncreasingTimePenalty(GenericReward):
-    def __init__(self, reward=-0.01):
+    def __init__(self, base_penalty=-0.01, escalation_rate=0.0001):
         super().__init__()
-        
-        self.reward = reward
+        self.base_penalty = base_penalty
+        self.escalation_rate = escalation_rate
 
     def get_digest(self):
-        return f'IncreasingTimePenalty(reward={self.reward})'
+        return f'IncreasingTimePenalty(base_penalty={self.base_penalty}, escalation_rate={self.escalation_rate})'
 
     def get_reward(self, state):
         step = state['steps']
-        reward = step*self.reward
-        return 'Increasing Time Penalty', reward
+        # Penalty increases over time: base_penalty + (step * escalation_rate)
+        escalating_penalty = self.base_penalty - (step * self.escalation_rate)
+        return 'Increasing Time Penalty', escalating_penalty

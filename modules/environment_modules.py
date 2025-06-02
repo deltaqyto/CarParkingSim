@@ -2,6 +2,7 @@ from modules.generic_modules import GenericEnvironment
 from Objects.obstacles import RectObstacle
 from Objects.car import Car
 from random import choice, randint, sample
+import pygame
 
 
 class Borders(GenericEnvironment):
@@ -39,7 +40,7 @@ class Borders(GenericEnvironment):
 ## =============== Credit: Nikhil & Jack ==================
 
 class ParkingLotModule(GenericEnvironment):
-    def __init__(self, wall_width=2, configuration=1, generate_goals=True, goal_radius = 0.8):
+    def __init__(self, wall_width=2, configuration=1, generate_goals=True, goal_radius = 1.4):
         super().__init__()
         self.configuration = configuration
         self.wall_width = wall_width
@@ -170,5 +171,71 @@ class ParkingLotModule(GenericEnvironment):
             'angle_tolerance' : 999,
             'bidirectional' : False
         }
+    
 
 
+class RandomSpawnModule(GenericEnvironment):
+    def __init__(self, spawn_distance_range=(15, 25), diagonal_offset_range=(-8, 8)):
+        super().__init__()
+        self.spawn_distance_range = spawn_distance_range
+        self.diagonal_offset_range = diagonal_offset_range
+        self.world_width = None
+        self.world_height = None
+        self.spawn_position = None
+        self.spawn_angle = None
+        self.should_apply_spawn = False
+
+    def reset(self, mode, state=None):
+        import random
+        
+        # Get world size
+        if state and 'world_size' in state:
+            self.world_width = state['world_size'][0]
+            self.world_height = state['world_size'][1]
+        
+        # Generate random spawn along vertical diagonal
+        distance_factor = random.uniform(0.3, 0.9)
+        
+        # Calculate position along diagonal (bottom-left to top-right)
+        diagonal_x = (self.world_width * distance_factor - self.world_width/2) 
+        diagonal_y = (self.world_height * distance_factor - self.world_height/2)
+        
+        # Add random offset perpendicular to diagonal
+        offset_distance = random.uniform(*self.diagonal_offset_range)
+        perp_x = -diagonal_y / (self.world_height/2) * offset_distance
+        perp_y = diagonal_x / (self.world_width/2) * offset_distance
+        
+        # Final spawn position and angle
+        self.spawn_position = [diagonal_x + perp_x, diagonal_y + perp_y]
+        self.spawn_angle = random.uniform(0, 2 * 3.14159)  # Random angle in radians
+        self.should_apply_spawn = True
+        
+        #print(f"Random spawn: pos=({self.spawn_position[0]:.1f}, {self.spawn_position[1]:.1f}), angle={self.spawn_angle:.2f} rad")
+
+    def apply_spawn_to_car(self, car):
+        """Apply the spawn position and orientation to the car"""
+        if self.should_apply_spawn and self.spawn_position and self.spawn_angle is not None:
+            car.position = self.spawn_position.copy()
+            car.direction_vector = car.angular_direction_to_vector(self.spawn_angle * 180 / 3.14159)  # Convert to degrees
+            self.should_apply_spawn = False
+            #print(f"Applied spawn: car now at {car.position} with direction {car.direction_vector}")
+
+    def render(self, screen, transform_matrix):
+        # Draw spawn point for debugging
+        if self.spawn_position:
+            import numpy as np
+            spawn_screen = transform_matrix @ np.array([*self.spawn_position, 1])
+            pygame.draw.circle(screen, (255, 255, 0), 
+                             (int(spawn_screen[0]), int(spawn_screen[1])), 5)
+
+    def get_digest(self):
+        return f"RandomSpawnModule(distance_range={self.spawn_distance_range}, offset_range={self.diagonal_offset_range})"
+
+    def get_unified_state(self):
+        return {
+            'car_position': self.spawn_position,
+            'car_orientation': self.spawn_angle,
+            'spawn_position': self.spawn_position,
+            'spawn_angle': self.spawn_angle,
+            'random_spawn_module': self  # Pass reference to module
+        }

@@ -1,5 +1,5 @@
 from Simulation.environments import load_env
-from modules.environment_modules import Borders, ParkingLotModule
+from modules.environment_modules import Borders, ParkingLotModule, RandomSpawnModule
 from modules.reward_functions import GoalEndReward, TimePenalty, CollisionPenalty
 from modules.stop_conditions import StepLimit, CollisionStop, GoalStop
 from modules.observation_modules import ClassicalObservation
@@ -7,7 +7,7 @@ from modules.module_reward_display import RewardDisplayModule
 from modules.YOLO_modules import YOLOGoalStop, SmoothDistanceReward, CarProximityPenalty, IncreasingTimePenalty
 
 
-def get_yolo_env(render=False, goal_size=0.8, angle_tolerance=999, vision_model="DET_001"):
+def get_yolo_env(render=False, goal_size=1.4, angle_tolerance=999, vision_model="DET_001"):
     world_width = 60
     world_aspect = 3 / 4
     world_height = world_width * world_aspect
@@ -15,7 +15,8 @@ def get_yolo_env(render=False, goal_size=0.8, angle_tolerance=999, vision_model=
     # YOLO-enabled environment modulesS
     environment_modules = [
         Borders(),
-        ParkingLotModule(configuration=0, generate_goals=True, goal_radius = 0.8),
+        ParkingLotModule(configuration=0, generate_goals=True, goal_radius = 1.4),
+        RandomSpawnModule(spawn_distance_range=(20, 20), diagonal_offset_range=(8, 8))
     ]
 
     # Use improved YOLO stop condition that handles timing gracefully
@@ -30,13 +31,18 @@ def get_yolo_env(render=False, goal_size=0.8, angle_tolerance=999, vision_model=
 
     #YOLO-optimized rewards
     reward_functions = [
-        GoalEndReward(reward=100),
-        IncreasingTimePenalty(reward=-0.0001),
-        CollisionPenalty(reward=-30),
-        SmoothDistanceReward(continuous_scale=0.8),
-        RewardDisplayModule()
-
+        GoalEndReward(reward=200),
+        IncreasingTimePenalty(base_penalty=-0.01, escalation_rate=0.000),  # More aggressive time pressure
+        CollisionPenalty(reward=-15),
+        SmoothDistanceReward(
+        continuous_scale=0.25,
+        stagnation_penalty=-0.10,    # Penalty for hovering
+        stagnation_threshold=20      # Start penalty after 30 steps near goal
+        ),
+        #CarProximityPenalty(penalty_distance=2.5, max_penalty=-0.03)
     ]
+
+    
 
     env = load_env(
         render=render,

@@ -102,11 +102,13 @@ class SimulationEnvironment:
             self.state['environment'].append(module.get_unified_state())
 
         car_heading = self.car.get_angle()
+        car_location = self.car.position
         self.state['obstacles'] = []
         for module in self.state['environment']:
             obstacle = module.get('obstacles', [])
             self.state['obstacles'] += obstacle
             car_heading = module.get('car_orientation', car_heading)
+            car_location = module.get('car_position', car_location)
 
         for module in self.stop_conditions:
             module.reset('stop', state=self.state)
@@ -120,6 +122,13 @@ class SimulationEnvironment:
             self.collision_system.add_object(obstacle)
 
         self.car.reset(direction=car_heading)
+        # Apply random spawn if RandomSpawnModule exists
+        for module in self.state['environment']:
+            if 'random_spawn_module' in module:
+                random_spawn_module = module['random_spawn_module']
+                random_spawn_module.apply_spawn_to_car(self.car)
+                break
+            
         self.collision_list = self.collision_system.collide_against(self.car)
         if self.collision_list:
             # Protect unwinnable situations

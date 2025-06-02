@@ -14,7 +14,7 @@ if __name__ == "__main__":
 
         from Simulation.training_schedule import YOLOParkingSchedule
         schedule = YOLOParkingSchedule(render=True)
-        model_targets = {    'ZO77_STP_1': 0,}
+        model_targets = {    'JRWM_STP_1': 0,}
         monitor = VisualMonitor(    schedule_class=YOLOParkingSchedule,    schedule_kwargs={'render': True},    model_targets=model_targets)
         
 
