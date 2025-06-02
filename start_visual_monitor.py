@@ -14,7 +14,6 @@ if __name__ == "__main__":
 
         from Simulation.training_schedule import BasicTrainingSchedule
 
-        schedule = BasicTrainingSchedule(render=True)
         model_targets = {
             'Model 1': 0,  # environment index 0
             'Model 2': 1,
