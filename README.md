@@ -17,6 +17,7 @@ See the page [here](https://deltaqyto.github.io/CarParkingSim/).
 Clone this repo, install python 3.10+\
 Install required packages with `pip install -r requirements.txt` Packages will take up ~1.5gb.\
 Additionally, if you have an nvidia gpu, install [torch with cuda](https://pytorch.org/get-started/locally/) to improve training performance
+Model files have been provided on gdrive, and you'll need to add them, or train your own. All scripts are configured to allow 1-click training of a fresh APYX run.
 
 
 ## Getting Started
