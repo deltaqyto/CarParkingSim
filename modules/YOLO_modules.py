@@ -218,6 +218,7 @@ class SmoothDistanceReward(GenericReward):
         return f'SmoothDistanceReward(factor={self.reward_factor}, continuous_scale={self.continuous_scale}, low_distance_reward={self.low_distance_reward})'
 
     def get_reward(self, state):
+    
         # Get goal distance
         closest_goal_data = state.get('closest_goal', {})
         goal_distance = closest_goal_data.get('distance', float('inf'))
@@ -225,11 +226,17 @@ class SmoothDistanceReward(GenericReward):
         if goal_distance == float('inf'):
             return 'SmoothDistanceReward', 0
 
+      
+
         # Continuous feedback - reward for getting closer to goals
         reward = 0
         if self.last_distance is not None and self.last_distance != float('inf'):
             distance_improvement = self.last_distance - goal_distance
             reward = distance_improvement * self.continuous_scale
+            
+            # Cap the reward change to prevent massive spikes
+            max_reward_change = 0.2  # Adjust this value as needed
+            reward = max(-max_reward_change, min(max_reward_change, reward))
 
             # Extra bonus for being very close to goals
             if goal_distance < self.low_distance_reward:
