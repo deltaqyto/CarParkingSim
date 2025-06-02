@@ -26,6 +26,9 @@ class GenericEnvironment(GenericModule):
     def __init__(self):
         super().__init__()
 
+    def step(self, state):
+        pass
+
 
 class GenericStop(GenericModule):
     def __init__(self):

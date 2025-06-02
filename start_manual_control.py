@@ -1,6 +1,7 @@
 import os
 
 from modules.custom_environments import get_yolo_env
+from modules.parking_modules import parking_env2
 
 os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = "hide"
 import pygame
@@ -11,17 +12,20 @@ from Simulation.environments import get_basic_env
 def select_environment():
     """Let user choose which environment to run"""
     print("Select environment:")
-    print("1. Basic Environment (default)")
-    print("2. Parking Environment")
+    print("1. Basic Environment")
+    print("2. Prototype Environment")
+    print("3. APYX Environment (default)")
 
     out = None
     while out is None:
         choice = input("Enter your choice (number or press Enter for default): ").strip()
 
-        if choice == "" or choice == "1":
+        if choice == "1":
             out = get_basic_env(render=True, goal_size=2, angle_tolerance=1.57)()
         if choice == "2":
             out = get_yolo_env(render=True)()
+        if choice == "" or choice == "3":
+            out = parking_env2(render=True, goal_size=1, episodes=500, decimation=0.3, angle_tolerance=3.1415 / 6, curb_depth=0, generate_curb=True,  spawn_probability=0.0, env_passthrough={'screen_width': 1600})()
         else:
             print("Invalid choice. Please enter a number.")
     print("Loading Environment...")

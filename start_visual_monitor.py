@@ -12,18 +12,23 @@ if __name__ == "__main__":
     try:
         mp.set_start_method('spawn', force=True)
 
-        from Simulation.training_schedule import BasicTrainingSchedule
+        from modules.parking_modules import ParkingSchedule2
 
         model_targets = {
-            'Model 1': 0,  # environment index 0
-            'Model 2': 1,
-            'Model 3': 2,
+            'Apyx_STP_1': 0,
+            'Apyx_STP_2': 1,
+            'Apyx_STP_3': 2,
+            'Apyx_STP_4': 3,
+            'Apyx_STP_5': 4,
+            'Apyx_STP_6': 5,
+            'Apyx_STP_7': 6,
+            'Apyx_STP_8': 7,
         }
 
         # Start the visual monitor
         monitor = VisualMonitor(
-            schedule_class=BasicTrainingSchedule,
-            schedule_kwargs={'render': True},
+            schedule_class=ParkingSchedule2,
+            schedule_kwargs={'render': True},#, 'vision_model':"VIS_006b"},
             model_targets=model_targets
         )
 

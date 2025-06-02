@@ -13,9 +13,9 @@ if __name__ == "__main__":
     try:
         mp.set_start_method('spawn', force=True)
 
-        from Simulation.training_schedule import YOLOParkingSchedule
+        from modules.parking_modules import ParkingSchedule2
 
-        do_curriculum_learning(YOLOParkingSchedule())
+        do_curriculum_learning(ParkingSchedule2(render=False), override_file_name="APYX")
 
 
     except Exception as e:

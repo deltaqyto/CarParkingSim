@@ -253,6 +253,10 @@ class SimulationEnvironment:
             self.car.steer = prev_steer
 
         self.state = self.get_unified_state()
+        for module in self.environment_modules:
+            module.step(self.state)
+
+        self.state = self.get_unified_state()
 
         if self.generate_vision:
             self.render_frame_lightweight()
@@ -352,7 +356,7 @@ class SimulationEnvironment:
         for module in self.stop_conditions:
             module.render(self.screen, self.transform)
 
-        self.collision_system.draw_debug(self.screen, self.transform)
+        # self.collision_system.draw_debug(self.screen, self.transform)
 
         self.car.draw(self.screen, self.transform)
 
