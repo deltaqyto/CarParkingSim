@@ -71,7 +71,7 @@ class YOLOGoalStop(GenericStop):
             distance = np.linalg.norm(car_position - goal_position)
 
             if distance <= self.goal_radius:
-                return True, f"Goal Hit (confidence: {goal['confidence']:.2f})"
+                return True, f"Goal Hit"
 
         return False, ""
 
