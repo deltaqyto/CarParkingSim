@@ -182,7 +182,7 @@ class SimulationEnvironment:
         for module in state['stop_conditions']:
             goals += module.get('goals', [])
         if not goals:
-            raise ValueError(f"No goals found in stop condition unified states")
+            raise ValueError(f"No goals found in unified states. Check your goal generator")
 
         # Create rotation matrix for transforming to car's frame
         cos_angle = np.cos(-car_heading)  # Negative angle to rotate world to car frame
