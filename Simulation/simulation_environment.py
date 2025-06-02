@@ -366,38 +366,6 @@ class SimulationEnvironment:
         for module in self.environment_modules:
             module.render(self.vision_surface, self.transform)
 
-        # # Draw rays from the car
-        # car_heading = np.arctan2(self.car.direction_vector[1], self.car.direction_vector[0])
-        # ray_color = (0, 255, 0)  # Green color for rays
-        #
-        # for i in range(len(self.state['raycasts'])):
-        #     # Calculate ray angle
-        #     angle = i * (2 * np.pi / len(self.state['raycasts'])) + car_heading
-        #
-        #     # Convert direction from car's direction vector
-        #     ray_dir = np.array([np.cos(angle), np.sin(angle)])
-        #
-        #     # Calculate distance based on raycast value
-        #     distance = self.state['raycasts'][i] * self.max_ray_distance
-        #
-        #     # Calculate end point
-        #     hit_point = self.car.position + ray_dir * distance
-        #
-        #     # Transform points for drawing
-        #     start_point = self.transform @ np.append(self.car.position, 1)
-        #     end_point = self.transform @ np.append(hit_point, 1)
-        #
-        #     # Use red color if ray hit something (< 0.95)
-        #     line_color = (255, 0, 0) if self.state['raycasts'][i] < 0.95 else ray_color
-        #
-        #     pygame.draw.line(
-        #         self.vision_surface,
-        #         line_color,
-        #         (int(start_point[0]), int(start_point[1])),
-        #         (int(end_point[0]), int(end_point[1])),
-        #         2
-        #     )
-
         for module in self.stop_conditions:
             module.render(self.vision_surface, self.transform)
 
